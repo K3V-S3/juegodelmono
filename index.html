@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏝️ La Isla de los Acuerdos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── RESET & TOKENS ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal: #0bd4b8;  --teal-d: #07a48e;
+      --ocean: #0a2240; --ocean-m: #0e3560; --ocean-l: #1a5080;
+      --coral: #ff6b4a; --gold: #f4c430; --green: #2ecc71; --red: #e74c3c;
+      --purple: #9b59b6; --white: #fff; --gray: #8899aa;
+      --r: 16px; --sh: 0 8px 32px rgba(0,0,0,.25);
+      --fh: 'Syne', sans-serif; --fb: 'DM Sans', sans-serif;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: var(--fb); background: var(--ocean); color: var(--white); font-size: 16px; }
+
+    /* ── PANTALLAS ──────────────────────────────────────────────── */
+    .screen { position: fixed; inset: 0; display: none; flex-direction: column; overflow: hidden; overflow-y: auto; }
+    .screen.active { display: flex; }
+
+    /* ── FONDO ANIMADO ──────────────────────────────────────────── */
+    .obg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(160deg,#061a35 0%,#0a2a50 40%,#0d3b6e 70%,#0a2a50 100%); overflow: hidden; pointer-events: none; }
+    .wave { position: absolute; bottom: 0; left: 0; right: 0; height: 200px; background: rgba(11,212,184,.06); border-radius: 100% 100% 0 0; animation: sway 6s ease-in-out infinite alternate; }
+    .wave:nth-child(2) { height: 160px; animation-delay: 2s; background: rgba(11,212,184,.04); }
+    .wave:nth-child(3) { height: 120px; animation-delay: 4s; background: rgba(11,212,184,.08); }
+    @keyframes sway { 0% { transform: translateX(-20px) scaleX(1.05); } 100% { transform: translateX(20px) scaleX(.95); } }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+
+    /* ── BOTONES ────────────────────────────────────────────────── */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 26px; border-radius: 50px; font-family: var(--fh); font-size: .9rem; font-weight: 700; cursor: pointer; border: none; transition: transform .15s, box-shadow .15s, opacity .15s; user-select: none; letter-spacing: .3px; }
+    .btn:active { transform: scale(.96); }
+    .btn-p  { background: var(--teal);  color: var(--ocean); box-shadow: 0 4px 20px rgba(11,212,184,.4); }
+    .btn-p:hover  { box-shadow: 0 6px 28px rgba(11,212,184,.6); }
+    .btn-o  { background: transparent; color: var(--white); border: 2px solid rgba(255,255,255,.3); }
+    .btn-o:hover  { border-color: var(--teal); color: var(--teal); }
+    .btn-danger  { background: var(--coral); color: var(--white); }
+    .btn-danger:hover { opacity: .88; }
+    .btn-success { background: var(--green);  color: var(--white); }
+    .btn-gold    { background: var(--gold);   color: var(--ocean); }
+    .btn-sm  { padding: 8px 16px;   font-size: .8rem; }
+    .btn-lg  { padding: 17px 34px;  font-size: 1rem;  }
+    .btn-full { width: 100%; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+    /* ── CAMPOS ─────────────────────────────────────────────────── */
+    .field { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    .field label { font-size: .78rem; color: var(--gray); font-weight: 500; }
+    .inp { background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.15); border-radius: 10px; padding: 12px 16px; color: var(--white); font-family: var(--fb); font-size: .95rem; width: 100%; outline: none; transition: border-color .2s; }
+    .inp:focus { border-color: var(--teal); }
+    .inp[type=number] { -moz-appearance: textfield; }
+    .inp[type=number]::-webkit-inner-spin-button { display: none; }
+    .sel { background: rgba(14,53,96,.95); border: 1.5px solid rgba(255,255,255,.15); border-radius: 10px; padding: 11px 16px; color: var(--white); font-family: var(--fb); font-size: .95rem; width: 100%; outline: none; cursor: pointer; }
+    .sel:focus { border-color: var(--teal); }
+    .sel option { background: var(--ocean-m); }
+    .card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: var(--r); padding: 20px; }
+
+    /* ── TOAST ──────────────────────────────────────────────────── */
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: rgba(10,34,64,.95); border: 1px solid rgba(255,255,255,.15); color: var(--white); padding: 12px 24px; border-radius: 50px; font-size: .88rem; font-weight: 500; z-index: 9999; transition: transform .3s cubic-bezier(.34,1.56,.64,1); pointer-events: none; white-space: nowrap; max-width: 90vw; text-align: center; backdrop-filter: blur(8px); }
+    #toast.show   { transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: var(--green);  color: var(--green);  }
+    #toast.warning { border-color: var(--coral);  color: var(--coral);  }
+    #toast.info    { border-color: var(--teal);   color: var(--teal);   }
+
+    /* ── MODALES ────────────────────────────────────────────────── */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
+    .modal.open { display: flex; }
+    .modal-box { background: var(--ocean-m); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; padding: 24px; width: 100%; max-width: 480px; box-shadow: var(--sh); position: relative; max-height: 90vh; overflow-y: auto; }
+    .modal-close { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,.08); border: none; color: var(--white); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+    .modal-close:hover { background: rgba(255,255,255,.16); }
+    .modal-title { font-family: var(--fh); font-size: 1.1rem; font-weight: 800; margin-bottom: 18px; }
+    .modal-sep { font-family: var(--fh); font-size: .75rem; font-weight: 700; letter-spacing: 1px; color: var(--gray); text-transform: uppercase; margin: 14px 0 8px; }
+    .res-row-modal { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .res-inp-wrap { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+    .res-inp-wrap label { font-size: .75rem; color: var(--gray); }
+    .res-inp-wrap .inp { text-align: center; padding: 10px 8px; }
+    .tribe-pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .tribe-pick-btn { padding: 10px 8px; border-radius: 10px; border: 2px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: var(--white); font-family: var(--fb); font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .2s; text-align: center; }
+    .tribe-pick-btn:hover { border-color: rgba(255,255,255,.3); }
+    .tribe-pick-btn.sel { border-color: var(--teal); background: rgba(11,212,184,.12); color: var(--teal); }
+    .vote-grid { display: flex; flex-direction: column; gap: 10px; }
+    .vote-opt { padding: 16px; border-radius: 14px; border: 2px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); cursor: pointer; transition: all .2s; }
+    .vote-opt:hover { transform: scale(1.01); }
+    .vote-opt h3 { font-family: var(--fh); font-size: .95rem; margin-bottom: 4px; }
+    .vote-opt p  { font-size: .78rem; color: var(--gray); }
+    .vote-opt.cumplir    { border-color: rgba(46,204,113,.4);  background: rgba(46,204,113,.08);  }
+    .vote-opt.traicionar { border-color: rgba(255,107,74,.4);  background: rgba(255,107,74,.08);  }
+    .deal-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 10px 12px; font-size: .8rem; display: flex; flex-direction: column; gap: 5px; }
+    .deal-status { display: inline-block; padding: 2px 9px; border-radius: 50px; font-size: .68rem; font-weight: 700; }
+    .deal-status.pending    { background: rgba(244,196,48,.2);  color: var(--gold);  }
+    .deal-status.fulfilled  { background: rgba(46,204,113,.2);  color: var(--green); }
+    .deal-status.broken     { background: rgba(231,76,60,.2);   color: var(--red);   }
+
+    /* ── LOGIN ──────────────────────────────────────────────────── */
+    #s-login { align-items: center; justify-content: center; background: linear-gradient(160deg,#061a35 0%,#0a2a50 50%,#0d3b6e 100%); }
+    .login-wrap { position: relative; z-index: 1; width: 100%; max-width: 400px; padding: 32px 24px; display: flex; flex-direction: column; gap: 20px; align-items: center; }
+    .island-hero { font-size: 80px; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 8px 24px rgba(11,212,184,.4)); }
+    .game-title { font-family: var(--fh); font-size: clamp(1.8rem,5vw,2.8rem); font-weight: 800; text-align: center; line-height: 1.1; }
+    .game-title span { color: var(--teal); }
+    .login-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; padding: 24px; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+    .role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .role-btn { padding: 14px; border-radius: 12px; border: 2px solid rgba(255,255,255,.15); background: rgba(255,255,255,.04); color: var(--white); font-family: var(--fh); font-size: .9rem; font-weight: 700; cursor: pointer; transition: all .2s; text-align: center; }
+    .role-btn:hover { border-color: var(--teal); background: rgba(11,212,184,.08); }
+    .role-btn.active { border-color: var(--teal); background: rgba(11,212,184,.15); color: var(--teal); }
+    .role-icon { font-size: 1.6rem; display: block; margin-bottom: 4px; }
+    .tribe-grid-sel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tribe-sel-btn { padding: 12px 8px; border-radius: 10px; border: 2px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: var(--white); font-family: var(--fb); font-size: .82rem; font-weight: 500; cursor: pointer; transition: all .2s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .tribe-sel-btn:hover { border-color: rgba(255,255,255,.3); }
+    .tribe-sel-btn .t-emoji { font-size: 1.4rem; }
+    .tribe-sel-btn .t-name  { font-size: .78rem; }
+
+    /* ── REGLAS ─────────────────────────────────────────────────── */
+    #s-rules { background: linear-gradient(160deg,#061a35 0%,#0a2a50 100%); }
+    .rules-wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 20px; }
+    .sh { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 14px; }
+    .sh h2 { font-family: var(--fh); font-size: 1.5rem; font-weight: 800; }
+    .badge { background: var(--teal); color: var(--ocean); font-size: .7rem; font-weight: 700; padding: 3px 10px; border-radius: 50px; }
+    .rules-intro { background: rgba(255,255,255,.04); padding: 16px; border-radius: 12px; line-height: 1.5; border-left: 4px solid var(--teal); }
+    .rules-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 14px; }
+    .rule-card { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); padding: 16px; border-radius: 12px; display: flex; gap: 12px; }
+    .rule-icon { font-size: 1.8rem; line-height: 1; }
+    .rule-card h3 { font-family: var(--fh); font-size: .95rem; margin-bottom: 4px; }
+    .rule-card p  { font-size: .82rem; color: var(--gray); line-height: 1.4; }
+    .timing-bar { display: flex; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,.2); padding: 10px; border-radius: 12px; justify-content: space-around; }
+    .time-pill { font-size: .8rem; display: flex; align-items: center; gap: 6px; }
+    .nav-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; }
+
+    /* ── SETUP ──────────────────────────────────────────────────── */
+    #s-setup { }
+    .setup-wrap { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 20px; text-align: center; }
+    .hint { font-size: .85rem; color: var(--gray); text-align: left; }
+    .tribes-grid { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+    .tribe-setup-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 12px; }
+    .t-emoji-big { font-size: 1.8rem; }
+    .tribe-setup-card input { flex: 1; background: transparent; border: none; border-bottom: 1.5px solid rgba(255,255,255,.2); color: var(--white); padding: 6px; font-family: var(--fb); font-size: 1rem; outline: none; }
+    .tribe-setup-card input:focus { border-color: var(--teal); }
+
+    /* ── LOBBY ──────────────────────────────────────────────────── */
+    #s-lobby { }
+    .lobby-wrap { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 20px; text-align: center; }
+    .lobby-title    { font-family: var(--fh); font-size: 1.6rem; font-weight: 800; }
+    .lobby-subtitle { font-size: .9rem; color: var(--teal); }
+    .players-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(130px,1fr)); gap: 10px; margin-top: 8px; }
+    .player-chip { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); padding: 8px 10px; border-radius: 10px; display: flex; align-items: center; gap: 8px; text-align: left; }
+    .pc-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .pc-name { font-size: .8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .pc-tribe { font-size: .68rem; color: var(--gray); }
+
+    /* ── HEADER DE JUEGO ────────────────────────────────────────── */
+    .game-hdr { background: rgba(10,34,64,.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,.1); padding: 12px 16px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; flex-shrink: 0; }
+    .hdr-logo  { font-family: var(--fh); font-weight: 800; color: var(--teal); white-space: nowrap; }
+    .hdr-round { background: rgba(255,255,255,.1); padding: 4px 10px; border-radius: 50px; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+    .event-pill { background: rgba(244,196,48,.15); border: 1px solid rgba(244,196,48,.3); padding: 4px 12px; border-radius: 50px; display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--gold); flex: 1; min-width: 0; }
+    .event-pill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .timer-disp { font-family: var(--fh); font-size: 1.2rem; font-weight: 800; color: var(--teal); background: rgba(0,0,0,.25); padding: 4px 12px; border-radius: 8px; min-width: 60px; text-align: center; flex-shrink: 0; transition: color .3s; }
+    .timer-disp.urgent { color: var(--coral); animation: pulse 1s infinite; }
+
+    /* ── INSTRUCTOR ─────────────────────────────────────────────── */
+    #s-instructor { }
+    .inst-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+    .sec-label { font-family: var(--fh); font-size: .8rem; font-weight: 800; letter-spacing: 1px; color: var(--gray); text-transform: uppercase; margin-top: 4px; }
+    .inst-tribes-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 12px; }
+    .tribe-card { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-top: 4px solid var(--tc); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .tc-head { display: flex; align-items: center; gap: 10px; }
+    .tc-emoji { font-size: 1.4rem; }
+    .tc-name  { font-family: var(--fh); font-weight: 700; font-size: .95rem; flex: 1; }
+    .tc-rep   { font-size: .75rem; font-weight: 700; }
+    .res-row  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .res-pill { background: rgba(0,0,0,.2); padding: 6px 4px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .res-pill .rl { font-size: .65rem; color: var(--gray); }
+    .res-pill .rv { font-size: .95rem; font-weight: 800; }
+    .tc-vote-badge { font-size: .7rem; padding: 3px 10px; border-radius: 50px; font-weight: 700; align-self: flex-start; }
+    .inst-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 600px) { .inst-panels { grid-template-columns: 1fr; } }
+    .panel { background: rgba(0,0,0,.2); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .panel-title { font-family: var(--fh); font-size: .82rem; font-weight: 800; color: var(--gray); }
+    .panel-list  { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+    .inst-actions { background: rgba(6,26,53,.92); padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.1); display: flex; gap: 8px; flex-wrap: wrap; position: sticky; bottom: 0; z-index: 100; flex-shrink: 0; }
+    .inst-actions .btn { flex: 1; min-width: 110px; }
+
+    /* ── TRIBU ──────────────────────────────────────────────────── */
+    #s-tribe { }
+    .tribe-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+    .big-res-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .big-res { padding: 14px 10px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .big-res.water    { background: rgba(11,212,184,.08); border: 1px solid rgba(11,212,184,.2); }
+    .big-res.food     { background: rgba(244,196,48,.08); border: 1px solid rgba(244,196,48,.2); }
+    .big-res.medicine { background: rgba(155,89,182,.08); border: 1px solid rgba(155,89,182,.2); }
+    .big-res-icon { font-size: 1.8rem; margin-bottom: 4px; }
+    .big-res-val  { font-family: var(--fh); font-size: 1.8rem; font-weight: 800; }
+    .big-res-lbl  { font-size: .72rem; color: var(--gray); margin-top: 2px; }
+    .ev-box { background: rgba(244,196,48,.06); border: 1px solid rgba(244,196,48,.15); padding: 12px 14px; border-radius: 12px; display: flex; gap: 12px; align-items: center; }
+    .ev-icon { font-size: 2rem; flex-shrink: 0; }
+    .ev-lbl  { font-size: .7rem; color: var(--gold); font-weight: 700; text-transform: uppercase; }
+    .ev-text { font-size: .83rem; line-height: 1.4; margin-top: 2px; }
+    .rep-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .rep-top  { display: flex; justify-content: space-between; font-size: .78rem; }
+    .rep-lbl  { color: var(--gray); }
+    .rep-val  { font-weight: 700; color: var(--gold); }
+    .rep-bar  { height: 8px; border-radius: 50px; background: rgba(255,255,255,.08); overflow: hidden; }
+    .rep-fill { height: 100%; border-radius: 50px; background: linear-gradient(90deg, var(--coral), var(--gold), var(--green)); transition: width .5s; }
+    .tribe-bottom { background: rgba(6,26,53,.92); padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.1); display: flex; gap: 8px; flex-wrap: wrap; position: sticky; bottom: 0; z-index: 100; flex-shrink: 0; }
+    .tribe-bottom .btn { flex: 1; min-width: 90px; }
+
+    /* ── CHAT ───────────────────────────────────────────────────── */
+    #s-chat { }
+    .chat-wrap { display: flex; flex-direction: column; height: 100%; }
+    .chat-hdr { background: rgba(10,34,64,.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,.1); padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .chat-hdr-title { font-family: var(--fh); font-weight: 800; flex: 1; font-size: 1rem; }
+    .chat-tabs { display: flex; background: rgba(0,0,0,.2); border-bottom: 1px solid rgba(255,255,255,.08); flex-shrink: 0; }
+    .chat-tab  { flex: 1; padding: 10px 8px; font-size: .78rem; font-weight: 700; text-align: center; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; transition: all .2s; }
+    .chat-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+    .chat-msgs { flex: 1; padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .chat-input-row { background: rgba(10,34,64,.9); border-top: 1px solid rgba(255,255,255,.1); padding: 12px 16px; display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+    .chat-inp { flex: 1; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15); border-radius: 50px; padding: 11px 18px; color: var(--white); font-family: var(--fb); font-size: .9rem; outline: none; }
+    .chat-inp:focus { border-color: var(--teal); }
+    .chat-send { width: 42px; height: 42px; border-radius: 50%; background: var(--teal); color: var(--ocean); border: none; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .chat-send:hover { background: var(--teal-d); }
+    .msg-row { display: flex; flex-direction: column; max-width: 80%; }
+    .msg-row.me   { align-self: flex-end; align-items: flex-end; }
+    .msg-row.other { align-self: flex-start; }
+    .msg-row.system { align-self: center; max-width: 90%; }
+    .msg-meta { font-size: .68rem; color: var(--gray); margin-bottom: 3px; }
+    .msg-bubble { padding: 9px 13px; border-radius: 16px; font-size: .85rem; line-height: 1.45; }
+    .msg-row.me    .msg-bubble { background: rgba(11,212,184,.18); border: 1px solid rgba(11,212,184,.3); border-bottom-right-radius: 4px; }
+    .msg-row.other .msg-bubble { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-bottom-left-radius: 4px; }
+    .msg-row.system .msg-bubble { background: rgba(244,196,48,.08); border: 1px solid rgba(244,196,48,.2); color: var(--gold); font-size: .78rem; font-style: italic; text-align: center; border-radius: 50px; }
+
+    /* ── RESULTADOS ─────────────────────────────────────────────── */
+    #s-final { background: linear-gradient(160deg,#061a35 0%,#0a2a50 100%); }
+    .final-wrap { position: relative; z-index: 1; max-width: 580px; margin: 0 auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 18px; }
+    .final-title { font-family: var(--fh); font-size: 2rem; font-weight: 800; text-align: center; }
+    .podium { display: flex; flex-direction: column; gap: 10px; }
+    .podium-item { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+    .podium-item:first-child { border-color: rgba(244,196,48,.4); background: rgba(244,196,48,.06); }
+    .podium-rank  { font-family: var(--fh); font-size: 1.5rem; font-weight: 800; min-width: 36px; }
+    .podium-info  { flex: 1; }
+    .podium-name  { font-family: var(--fh); font-weight: 700; font-size: .95rem; }
+    .podium-pts   { font-size: .78rem; color: var(--teal); margin-top: 3px; }
+    .podium-res   { font-size: .72rem; color: var(--gray); }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════
+     PANTALLA 1 — LOGIN
+════════════════════════════════════════════════════════ -->
+<div id="s-login" class="screen active">
+  <div class="obg"><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
+  <div class="login-wrap">
+    <div class="island-hero">🏝️</div>
+    <h1 class="game-title">La Isla de <span>Los Acuerdos</span></h1>
+    <div class="login-card">
+      <div class="field">
+        <label>Tu Nombre o Nickname</label>
+        <input type="text" id="user-name" class="inp" placeholder="Ej. Capitán Alfa" maxlength="15" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>¿Cuál es tu Rol?</label>
+        <div class="role-selector">
+          <button id="role-player" class="role-btn active" onclick="setRole('player')">
+            <span class="role-icon">🏕️</span>Jugador
+          </button>
+          <button id="role-instructor" class="role-btn" onclick="setRole('instructor')">
+            <span class="role-icon">👨‍🏫</span>Instructor
+          </button>
+        </div>
+      </div>
+      <div id="tribe-picker-wrap" class="field">
+        <label>Selecciona tu Tribu Asignada</label>
+        <div class="tribe-grid-sel" id="tribe-picker"></div>
+      </div>
+      <div id="instructor-code-wrap" class="field" style="display:none">
+        <label>Código de Seguridad del Instructor</label>
+        <input type="password" id="inst-code" class="inp" placeholder="****">
+      </div>
+      <button class="btn btn-p btn-full btn-lg" onclick="doLogin()" style="margin-top:8px">
+        Ingresar al Simulador →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     PANTALLA 2 — REGLAS
+════════════════════════════════════════════════════════ -->
+<div id="s-rules" class="screen">
+  <div class="rules-wrap">
+    <div class="sh">
+      <span class="badge">MANUAL DEL PARTICIPANTE</span>
+      <h2>Reglas de Supervivencia</h2>
+    </div>
+    <div class="rules-intro">
+      <strong>30 sobrevivientes</strong> llegan a una isla y se dividen en <strong>6 tribus</strong>.
+      Cada tribu tiene recursos distintos y <strong>ninguna puede ganar sola</strong>.
+      Para sobrevivir deben negociar, crear alianzas… pero también decidir si confiarán o traicionarán.
+    </div>
+    <div class="rules-grid">
+      <div class="rule-card"><div class="rule-icon">👑</div><div><h3>Elige un líder</h3><p>Cada equipo elige a su líder. Los líderes negocian directamente con otros equipos.</p></div></div>
+      <div class="rule-card"><div class="rule-icon">🤝</div><div><h3>Negocia</h3><p>Habla en persona, propone acuerdos y regístralos en la app. El chat facilita la comunicación.</p></div></div>
+      <div class="rule-card"><div class="rule-icon">⚖️</div><div><h3>Cumple o traiciona</h3><p>Después de negociar, cada equipo decide en privado: ¿cumple o rompe el trato?</p></div></div>
+      <div class="rule-card"><div class="rule-icon">⭐</div><div><h3>Reputación</h3><p>Cumplir sube tu reputación y abre alianzas. Traicionar la destruye.</p></div></div>
+      <div class="rule-card"><div class="rule-icon">🌪️</div><div><h3>Eventos</h3><p>Cada ronda hay un evento que afecta a todas las tribus: lluvias, epidemias…</p></div></div>
+      <div class="rule-card"><div class="rule-icon">🏆</div><div><h3>Gana</h3><p>Más recursos + mejor reputación = más puntos. La tribu con más puntos gana.</p></div></div>
+    </div>
+    <div class="timing-bar">
+      <div class="time-pill">🎓 <span><strong>5 min</strong> Explicación</span></div>
+      <div class="time-pill">⚡ <span><strong>3 min</strong> × 5 rondas</span></div>
+      <div class="time-pill">💡 <span><strong>5 min</strong> Reflexión</span></div>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-o btn-sm" onclick="goTo('s-setup')">← Configuración</button>
+      <button class="btn btn-p btn-sm" onclick="goToLobby()">Ir a la sala de espera →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     PANTALLA 3 — SETUP (solo instructor)
+════════════════════════════════════════════════════════ -->
+<div id="s-setup" class="screen">
+  <div class="obg"><div class="wave"></div><div class="wave"></div></div>
+  <div class="setup-wrap">
+    <div class="sh">
+      <div style="font-size:1.5rem">⚙️</div>
+      <h2>Configuración inicial</h2>
+    </div>
+    <p class="hint">Modifica los nombres de las tribus si los equipos ya se bautizaron en el aula:</p>
+    <div class="tribes-grid" id="setup-tribes-list"></div>
+    <div class="nav-row" style="margin-top:10px">
+      <button class="btn btn-o btn-sm" onclick="goTo('s-login')">← Atrás</button>
+      <button class="btn btn-p btn-sm" onclick="instructorInitGame()">Guardar y continuar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     PANTALLA 4 — LOBBY
+════════════════════════════════════════════════════════ -->
+<div id="s-lobby" class="screen">
+  <div class="obg"><div class="wave"></div><div class="wave"></div></div>
+  <div class="lobby-wrap">
+    <div style="font-size:56px">⏳</div>
+    <h2 class="lobby-title">Sala de Espera</h2>
+    <p class="lobby-subtitle" id="lobby-my-tribe">Conectando…</p>
+    <div class="card" style="width:100%;background:rgba(0,0,0,.2)">
+      <div style="font-size:.78rem;color:var(--gray);margin-bottom:12px;text-align:left;font-weight:700">
+        🟢 JUGADORES EN LÍNEA
+      </div>
+      <div class="players-grid" id="lobby-players">
+        <div style="color:var(--gray);font-size:.82rem">Ningún jugador aún</div>
+      </div>
+    </div>
+    <!-- Controles del instructor -->
+    <div id="lobby-inst-controls" style="display:none;flex-direction:column;gap:10px;width:100%">
+      <button class="btn btn-o btn-full" onclick="goTo('s-rules')">📖 Ver Instrucciones</button>
+      <button class="btn btn-p btn-full btn-lg" id="btn-start-round" onclick="instructorStartRound()">▶ Iniciar Ronda 1</button>
+      <button class="btn btn-danger btn-sm btn-full" onclick="confirmReset()">🔄 Reiniciar partida</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     PANTALLA 5 — INSTRUCTOR
+════════════════════════════════════════════════════════ -->
+<div id="s-instructor" class="screen">
+  <header class="game-hdr">
+    <span class="hdr-logo">🏝️ Isla</span>
+    <span class="hdr-round" id="inst-round-lbl">Ronda 1/5</span>
+    <div class="event-pill">
+      <span id="inst-ev-icon">🌞</span>
+      <span id="inst-ev-text">—</span>
+    </div>
+    <div class="timer-disp" id="inst-timer">3:00</div>
+  </header>
+  <div class="inst-body">
+    <div class="sec-label">🏕️ Estado de Tribus</div>
+    <div class="inst-tribes-grid" id="inst-tribes-grid"></div>
+    <div class="inst-panels">
+      <div class="panel">
+        <div class="panel-title">📜 ACUERDOS DE ESTA RONDA</div>
+        <div class="panel-list" id="inst-deals-list">
+          <div style="color:var(--gray);font-size:.78rem">Sin acuerdos aún</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">💬 ÚLTIMOS MENSAJES</div>
+        <div class="panel-list" id="inst-chat-preview">
+          <div style="color:var(--gray);font-size:.78rem">Sin mensajes aún</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="inst-actions">
+    <button class="btn btn-gold btn-sm" onclick="goToChat()">💬 Chat</button>
+    <button class="btn btn-o btn-sm"    onclick="openModalEditRes()">📦 Recursos</button>
+    <button class="btn btn-p btn-sm"    onclick="instructorStartRound()">🔄 Siguiente Ronda</button>
+    <button class="btn btn-danger btn-sm" onclick="confirmReset()">↩ Reiniciar</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     PANTALLA 6 — VISTA TRIBU
+════════════════════════════════════════════════════════ -->
+<div id="s-tribe" class="screen">
+  <header class="game-hdr">
+    <span id="tv-emoji" style="font-size:1.5rem">🔥</span>
+    <div style="flex:1;min-width:0">
+      <div id="tv-name" style="font-family:var(--fh);font-weight:800;font-size:.95rem">Mi Tribu</div>
+      <div id="tv-sub"  style="font-size:.7rem;color:var(--gray)">Ronda 1 / 5</div>
+    </div>
+    <div class="timer-disp" id="tv-timer">3:00</div>
+  </header>
+  <div class="tribe-body">
+    <div class="sec-label">📊 Recursos Disponibles</div>
+    <div class="big-res-grid">
+      <div class="big-res water">
+        <span class="big-res-icon">💧</span>
+        <span class="big-res-val" id="tv-water">0</span>
+        <span class="big-res-lbl">Agua</span>
+      </div>
+      <div class="big-res food">
+        <span class="big-res-icon">🍞</span>
+        <span class="big-res-val" id="tv-food">0</span>
+        <span class="big-res-lbl">Comida</span>
+      </div>
+      <div class="big-res medicine">
+        <span class="big-res-icon">💊</span>
+        <span class="big-res-val" id="tv-medicine">0</span>
+        <span class="big-res-lbl">Medicina</span>
+      </div>
+    </div>
+    <div class="rep-wrap">
+      <div class="rep-top">
+        <span class="rep-lbl">⭐ Reputación</span>
+        <span class="rep-val" id="tv-rep-val">100</span>
+      </div>
+      <div class="rep-bar"><div class="rep-fill" id="tv-rep-fill" style="width:50%"></div></div>
+    </div>
+    <div class="ev-box" id="tv-ev-box" style="display:none">
+      <div class="ev-icon" id="tv-ev-icon">🌞</div>
+      <div>
+        <div class="ev-lbl">Evento de la Ronda</div>
+        <div class="ev-text" id="tv-ev-text">—</div>
+      </div>
+    </div>
+    <div class="sec-label">📜 Mis Acuerdos</div>
+    <div id="tv-deals-list" style="display:flex;flex-direction:column;gap:8px">
+      <div style="color:var(--gray);font-size:.82rem">Sin acuerdos aún</div>
+    </div>
+    <div id="tv-vote-badge-wrap" style="display:none">
+      <div id="tv-vote-badge" style="font-size:.82rem;padding:8px 14px;border-radius:50px;font-weight:700;display:inline-block"></div>
+    </div>
+  </div>
+  <div class="tribe-bottom">
+    <button class="btn btn-gold btn-sm" onclick="goToChat()">💬 Chat</button>
+    <button class="btn btn-o btn-sm"    onclick="openModalNegotiate()">🤝 Negociar</button>
+    <button class="btn btn-p btn-sm"    onclick="openModalVote()">⚖️ Votar</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     PANTALLA 7 — CHAT
+════════════════════════════════════════════════════════ -->
+<div id="s-chat" class="screen">
+  <div class="chat-wrap">
+    <div class="chat-hdr">
+      <button class="btn btn-o btn-sm" onclick="goBackFromChat()">← Volver</button>
+      <div class="chat-hdr-title">💬 Chat del Simulador</div>
+      <div id="chat-badge" style="font-size:.72rem;background:rgba(255,255,255,.1);padding:4px 10px;border-radius:50px"></div>
+    </div>
+    <div class="chat-tabs">
+      <div class="chat-tab active" id="tab-general" onclick="setChatTab('general')">🌐 General</div>
+      <div class="chat-tab" id="tab-tribe" onclick="setChatTab('tribe')">🏕️ Mi Tribu</div>
+    </div>
+    <div class="chat-msgs" id="chat-msgs"></div>
+    <div class="chat-input-row">
+      <input type="text" class="chat-inp" id="chat-input" placeholder="Escribe un mensaje…"
+             onkeydown="if(event.key==='Enter')sendChatMsg()" maxlength="200" autocomplete="off">
+      <button class="chat-send" onclick="sendChatMsg()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     PANTALLA 8 — RESULTADOS FINALES
+════════════════════════════════════════════════════════ -->
+<div id="s-final" class="screen">
+  <div class="obg"><div class="wave"></div><div class="wave"></div></div>
+  <div class="final-wrap">
+    <div style="text-align:center;font-size:3.5rem">🏆</div>
+    <h2 class="final-title">¡Fin de la Isla!</h2>
+    <p style="text-align:center;color:var(--gray)">Resultados finales de las 5 rondas de supervivencia</p>
+    <div class="podium" id="final-podium"></div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+      <button class="btn btn-o btn-sm" onclick="goToChat()">💬 Ver Chat</button>
+      <button class="btn btn-danger btn-sm" id="btn-final-reset" style="display:none" onclick="confirmReset()">🔄 Nueva Partida</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MODAL — NEGOCIACIÓN
+════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-negotiate">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-negotiate')">✕</button>
+    <div class="modal-title">🤝 Proponer Acuerdo</div>
+    <div class="modal-sep">¿Con qué tribu negocias?</div>
+    <div class="tribe-pick-grid" id="neg-tribe-grid"></div>
+    <div class="modal-sep">Yo ofrezco (mi tribu entrega):</div>
+    <div class="res-row-modal">
+      <div class="res-inp-wrap"><label>💧 Agua</label>   <input id="neg-give-w" type="number" class="inp" value="0" min="0"></div>
+      <div class="res-inp-wrap"><label>🍞 Comida</label> <input id="neg-give-f" type="number" class="inp" value="0" min="0"></div>
+      <div class="res-inp-wrap"><label>💊 Medicina</label><input id="neg-give-m" type="number" class="inp" value="0" min="0"></div>
+    </div>
+    <div class="modal-sep">Yo pido (la otra tribu entrega):</div>
+    <div class="res-row-modal">
+      <div class="res-inp-wrap"><label>💧 Agua</label>   <input id="neg-recv-w" type="number" class="inp" value="0" min="0"></div>
+      <div class="res-inp-wrap"><label>🍞 Comida</label> <input id="neg-recv-f" type="number" class="inp" value="0" min="0"></div>
+      <div class="res-inp-wrap"><label>💊 Medicina</label><input id="neg-recv-m" type="number" class="inp" value="0" min="0"></div>
+    </div>
+    <button class="btn btn-p btn-full" onclick="submitNegotiation()">Registrar Acuerdo</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MODAL — VOTACIÓN
+════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-vote">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-vote')">✕</button>
+    <div class="modal-title">⚖️ Decisión Final</div>
+    <p style="font-size:.85rem;color:var(--gray);margin-bottom:16px">
+      Elige cómo actuará tu tribu con los acuerdos pendientes de esta ronda.
+      Esta decisión es privada.
+    </p>
+    <div id="vote-already" style="display:none;text-align:center;padding:20px 0">
+      <div style="font-size:2rem" id="vote-already-icon">✅</div>
+      <div id="vote-already-text" style="margin-top:8px;font-weight:700">Ya votaste</div>
+    </div>
+    <div id="vote-options" class="vote-grid">
+      <div class="vote-opt cumplir" onclick="submitVote('cumplir')">
+        <h3>✅ Cumplir los Acuerdos</h3>
+        <p>Transfiere los recursos pactados. +15 reputación por cada acuerdo cumplido.</p>
+      </div>
+      <div class="vote-opt traicionar" onclick="submitVote('traicionar')">
+        <h3>💀 Traicionar los Acuerdos</h3>
+        <p>Conservas tus recursos pero −25 reputación. La otra tribu lo sabrá.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MODAL — EDITAR RECURSOS (instructor)
+════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-edit-res">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-edit-res')">✕</button>
+    <div class="modal-title">📦 Editar Recursos</div>
+    <div class="modal-sep">Selecciona la tribu:</div>
+    <div class="tribe-pick-grid" id="res-tribe-grid"></div>
+    <div id="res-form" style="display:none">
+      <div class="modal-sep">Valores actuales (edita y guarda):</div>
+      <div class="res-row-modal">
+        <div class="res-inp-wrap"><label>💧 Agua</label>   <input id="res-w" type="number" class="inp" min="0"></div>
+        <div class="res-inp-wrap"><label>🍞 Comida</label> <input id="res-f" type="number" class="inp" min="0"></div>
+        <div class="res-inp-wrap"><label>💊 Medicina</label><input id="res-m" type="number" class="inp" min="0"></div>
+      </div>
+      <button class="btn btn-p btn-full" onclick="saveResources()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MODAL — CONFIRMAR RESET
+════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-reset">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-reset')">✕</button>
+    <div class="modal-title">🔄 ¿Reiniciar la Partida?</div>
+    <p style="color:var(--gray);font-size:.88rem;line-height:1.5;margin-bottom:20px">
+      Esto borrará jugadores, acuerdos, chat, rondas y votos.
+      Los jugadores volverán a la pantalla de login.
+    </p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-o btn-full" onclick="closeModal('modal-reset')">Cancelar</button>
+      <button class="btn btn-danger btn-full" onclick="doReset()">Sí, reiniciar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">Notificación</div>
+
+<!-- ════════════════════════════════════════════════════════
+     JAVASCRIPT — Toda la lógica del juego
+     Almacenamiento: variable JS en memoria (DB)
+     Para conectar Firebase: reemplaza loadDB/saveDB/updateDB
+════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ──────────────────────────────────────────────────────────
+   CONSTANTES
+────────────────────────────────────────────────────────── */
+const ROUND_SECS      = 180;
+const MAX_ROUNDS      = 5;
+const INSTRUCTOR_CODE = '1234';
+
+const DEFAULT_TRIBES = [
+  { name: 'Tribu Arrecife',   emoji: '🦈', color: '#1ab8d8' },
+  { name: 'Tribu Volcán',     emoji: '🌋', color: '#e74c3c' },
+  { name: 'Tribu Selva',      emoji: '🐆', color: '#2ecc71' },
+  { name: 'Tribu Arena',      emoji: '🦂', color: '#f4c430' },
+  { name: 'Tribu Palmera',    emoji: '🌴', color: '#9b59b6' },
+  { name: 'Tribu Acantilado', emoji: '🦅', color: '#ff6b4a' }
+];
+
+const INIT_RES = [
+  { water: 25, food: 8,  medicine: 5  },
+  { water: 6,  food: 25, medicine: 5  },
+  { water: 10, food: 22, medicine: 6  },
+  { water: 7,  food: 6,  medicine: 25 },
+  { water: 14, food: 14, medicine: 10 },
+  { water: 10, food: 10, medicine: 10 }
+];
+
+const EVENTS = [
+  { icon: '🌧️', text: 'Lluvia torrencial: todas las tribus ganan +5 agua.' },
+  { icon: '☀️', text: 'Sequía severa: todas las tribus pierden −5 agua.' },
+  { icon: '🦟', text: 'Epidemia: todas las tribus pierden −5 medicina.' },
+  { icon: '🌿', text: 'Cosecha abundante: todas las tribus ganan +5 comida.' },
+  { icon: '🌡️', text: 'Ola de calor: todas pierden −3 agua y −3 comida.' },
+  { icon: '🌊', text: 'Tormenta costera: traicionar esta ronda cuesta −10 rep extra.' },
+  { icon: '🌞', text: 'Día despejado. Sin efectos especiales.' },
+  { icon: '🍄', text: 'Hongos venenosos: todas pierden −4 comida.' },
+  { icon: '💎', text: 'Recursos ocultos descubiertos: +3 a todos los recursos de cada tribu.' }
+];
+
+/* ──────────────────────────────────────────────────────────
+   BASE DE DATOS EN MEMORIA
+   ► Para conectar Firebase: reemplaza estas 3 funciones:
+       loadDB()   → getDoc(docRef)
+       saveDB(d)  → setDoc(docRef, d)
+       updateDB(fn) → transacción o getDoc→fn→setDoc
+   ► El resto del código NO cambia.
+────────────────────────────────────────────────────────── */
+
+/** Crea el estado inicial vacío */
+function freshState() {
+  return {
+    phase:        'lobby',   // 'lobby' | 'playing' | 'final'
+    round:        1,
+    timerSec:     ROUND_SECS,
+    timerRunning: false,
+    currentEvent: EVENTS[6],
+    tribes:       DEFAULT_TRIBES.map((t, i) => ({
+      id: i, name: t.name, emoji: t.emoji, color: t.color,
+      ...INIT_RES[i],
+      reputation: 100, points: 0,
+      vote: null          // null | 'cumplir' | 'traicionar'
+    })),
+    players: [],           // [{ name, tribeId }]
+    deals:   [],           // [{ id, fromId, toId, giveW,giveF,giveM, recvW,recvF,recvM, round, status }]
+    chat:    []            // [{ id, author, tribeId, tab, text, ts, system }]
+  };
+}
+
+let DB = freshState();    // ← ÚNICO almacén de datos
+
+// Las tres funciones de acceso a datos.
+// Cuando conectes Firebase, reemplaza solo estas tres.
+function loadDB()      { return DB; }
+function saveDB(d)     { DB = d; renderAll(); }
+function updateDB(fn)  { const d = loadDB(); fn(d); saveDB(d); }
+
+/* ──────────────────────────────────────────────────────────
+   SESIÓN LOCAL (datos del usuario en este dispositivo)
+────────────────────────────────────────────────────────── */
+let session = {
+  name:     '',
+  role:     'player',   // 'player' | 'instructor'
+  tribeId:  null        // número 0-5 o null
+};
+
+let selectedRole  = 'player';
+let selectedTribe = null;
+let chatTab       = 'general';   // 'general' | 'tribe'
+let negTribeId    = null;        // tribu seleccionada en modal negociar
+let resTribeId    = null;        // tribu seleccionada en modal recursos
+let prevScreen    = 's-instructor';  // pantalla anterior al chat
+let timerInterval = null;
+
+/* ──────────────────────────────────────────────────────────
+   NAVEGACIÓN
+────────────────────────────────────────────────────────── */
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* ──────────────────────────────────────────────────────────
+   LOGIN
+────────────────────────────────────────────────────────── */
+function setRole(r) {
+  selectedRole = r;
+  document.getElementById('role-player').classList.toggle('active', r === 'player');
+  document.getElementById('role-instructor').classList.toggle('active', r === 'instructor');
+  document.getElementById('tribe-picker-wrap').style.display      = r === 'player'     ? '' : 'none';
+  document.getElementById('instructor-code-wrap').style.display   = r === 'instructor' ? '' : 'none';
+}
+
+function selectTribe(i) {
+  selectedTribe = i;
+  renderTribePicker();
+}
+
+function renderTribePicker() {
+  const picker = document.getElementById('tribe-picker');
+  if (!picker) return;
+  const tribes = DB.tribes || DEFAULT_TRIBES;
+  picker.innerHTML = tribes.map((t, i) => {
+    const sel   = selectedTribe === i;
+    const style = sel
+      ? `border-color:${t.color};background:${t.color}22;border-width:2.5px`
+      : 'border-color:rgba(255,255,255,0.15)';
+    return `<div class="tribe-sel-btn" style="${style}" onclick="selectTribe(${i})">
+      <span class="t-emoji">${t.emoji}</span>
+      <span class="t-name">${esc(t.name)}</span>
+    </div>`;
+  }).join('');
+}
+
+function doLogin() {
+  const name = document.getElementById('user-name').value.trim();
+  if (!name) { showToast('⚠️ Ingresa tu nombre', 'warning'); return; }
+  session.name = name;
+
+  if (selectedRole === 'instructor') {
+    const code = document.getElementById('inst-code').value;
+    if (code !== INSTRUCTOR_CODE) { showToast('⚠️ Código incorrecto', 'warning'); return; }
+    session.role    = 'instructor';
+    session.tribeId = null;
+    renderSetupTribes();
+    goTo('s-setup');
+
+  } else {
+    if (selectedTribe === null) { showToast('⚠️ Elige tu tribu', 'warning'); return; }
+    session.role    = 'player';
+    session.tribeId = selectedTribe;
+    // Registrar jugador (evitar duplicado por nombre+tribu)
+    updateDB(d => {
+      if (!d.players) d.players = [];
+      const exists = d.players.some(p => p.name === session.name && p.tribeId === session.tribeId);
+      if (!exists) d.players.push({ name: session.name, tribeId: session.tribeId });
+    });
+    goToLobby();
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   SETUP
+────────────────────────────────────────────────────────── */
+function renderSetupTribes() {
+  const c = document.getElementById('setup-tribes-list');
+  if (!c) return;
+  c.innerHTML = DB.tribes.map((t, i) => `
+    <div class="tribe-setup-card">
+      <span class="t-emoji-big">${t.emoji}</span>
+      <input type="text" id="tn-${i}" value="${esc(t.name)}" maxlength="18">
+    </div>`).join('');
+}
+
+function instructorInitGame() {
+  updateDB(d => {
+    DEFAULT_TRIBES.forEach((def, i) => {
+      const val = document.getElementById(`tn-${i}`)?.value.trim();
+      d.tribes[i].name = val || def.name;
+    });
+    d.phase        = 'lobby';
+    d.round        = 1;
+    d.timerSec     = ROUND_SECS;
+    d.timerRunning = false;
+    d.deals        = [];
+    d.chat         = [];
+    d.players      = [];
+  });
+  goToLobby();
+}
+
+/* ──────────────────────────────────────────────────────────
+   LOBBY
+────────────────────────────────────────────────────────── */
+function goToLobby() {
+  goTo('s-lobby');
+  if (session.role === 'instructor') {
+    document.getElementById('lobby-inst-controls').style.display = 'flex';
+  }
+  renderLobby(DB);
+}
+
+function renderLobby(d) {
+  if (!d) return;
+  // Subtítulo
+  const lbl = document.getElementById('lobby-my-tribe');
+  if (lbl) {
+    if (session.role === 'instructor') {
+      lbl.textContent = '👨‍🏫 Modo Instructor Activo';
+    } else {
+      const t = d.tribes?.[session.tribeId];
+      lbl.textContent = t ? `${t.emoji} Listo en la ${t.name}` : 'Conectando…';
+    }
+  }
+  // Lista de jugadores
+  const pg = document.getElementById('lobby-players');
+  if (pg) {
+    if (!d.players || d.players.length === 0) {
+      pg.innerHTML = '<div style="color:var(--gray);font-size:.82rem">Ningún jugador aún</div>';
+    } else {
+      pg.innerHTML = d.players.map(p => {
+        const t = d.tribes?.[p.tribeId];
+        return `<div class="player-chip">
+          <div class="pc-dot" style="background:${t?.color || '#888'}"></div>
+          <div>
+            <div class="pc-name">${esc(p.name)}</div>
+            <div class="pc-tribe">${t?.emoji || '?'} ${esc(t?.name || '—')}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+  // Botón de inicio
+  const btn = document.getElementById('btn-start-round');
+  if (btn) btn.textContent = d.phase === 'playing' ? '🔄 Siguiente Ronda' : '▶ Iniciar Ronda 1';
+
+  // Auto-navegar si el juego ya empezó
+  if (d.phase === 'playing') autoNavigate(d);
+  if (d.phase === 'final')   goTo('s-final');
+}
+
+/* ──────────────────────────────────────────────────────────
+   TIMER
+────────────────────────────────────────────────────────── */
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const d = loadDB();
+    if (!d.timerRunning) return;
+    if (d.timerSec <= 0) {
+      clearInterval(timerInterval);
+      updateDB(dd => { dd.timerRunning = false; });
+      showToast('⏰ ¡Tiempo! La ronda ha terminado.', 'warning');
+      return;
+    }
+    updateDB(dd => { dd.timerSec = Math.max(0, dd.timerSec - 1); });
+  }, 1000);
+}
+
+function renderTimer(sec) {
+  const m  = String(Math.floor(sec / 60)).padStart(2, '0');
+  const s  = String(sec % 60).padStart(2, '0');
+  const t  = `${m}:${s}`;
+  const urgent = sec < 30;
+  ['inst-timer', 'tv-timer'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = t;
+    el.classList.toggle('urgent', urgent);
+  });
+}
+
+/* ──────────────────────────────────────────────────────────
+   INSTRUCTOR — CONTROL DE RONDAS
+────────────────────────────────────────────────────────── */
+function instructorStartRound() {
+  const d = loadDB();
+
+  // Si ya estamos en juego, resolver ronda anterior primero
+  if (d.phase === 'playing') {
+    resolveRound(d);
+    // Avanzar ronda
+    d.round += 1;
+    if (d.round > MAX_ROUNDS) {
+      calcFinalPoints(d);
+      d.phase        = 'final';
+      d.timerRunning = false;
+      clearInterval(timerInterval);
+      saveDB(d);
+      renderAll();
+      goTo('s-final');
+      return;
+    }
+  }
+
+  // Aplicar evento aleatorio
+  const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+  applyEvent(d, ev);
+  d.currentEvent = ev;
+
+  // Resetear votos de tribus
+  d.tribes.forEach(t => { t.vote = null; });
+
+  d.phase        = 'playing';
+  d.timerSec     = ROUND_SECS;
+  d.timerRunning = true;
+
+  saveDB(d);
+  startTimer();
+
+  postSystemMsg(`🔔 Ronda ${d.round}/${MAX_ROUNDS} iniciada — ${ev.icon} ${ev.text}`);
+  showToast(`▶ Ronda ${d.round} iniciada`, 'success');
+  goTo('s-instructor');
+}
+
+function applyEvent(d, ev) {
+  d.tribes.forEach(t => {
+    if (ev.icon === '🌧️') { t.water    = Math.max(0, t.water    + 5); }
+    if (ev.icon === '☀️') { t.water    = Math.max(0, t.water    - 5); }
+    if (ev.icon === '🦟') { t.medicine = Math.max(0, t.medicine - 5); }
+    if (ev.icon === '🌿') { t.food     = Math.max(0, t.food     + 5); }
+    if (ev.icon === '🌡️') { t.water = Math.max(0, t.water - 3); t.food = Math.max(0, t.food - 3); }
+    if (ev.icon === '🍄') { t.food     = Math.max(0, t.food     - 4); }
+    if (ev.icon === '💎') { t.water += 3; t.food += 3; t.medicine += 3; }
+  });
+}
+
+function resolveRound(d) {
+  const stormActive = d.currentEvent?.icon === '🌊';
+  d.deals.filter(deal => deal.status === 'pending' && deal.round === d.round).forEach(deal => {
+    const from = d.tribes[deal.fromId];
+    const to   = d.tribes[deal.toId];
+    if (!from || !to) return;
+
+    const fVote = from.vote;
+    const tVote = to.vote;
+
+    if (fVote === 'cumplir' && tVote === 'cumplir') {
+      // Ambos cumplen: transferir recursos mutuamente
+      from.water    = Math.max(0, from.water    - deal.giveW);
+      from.food     = Math.max(0, from.food     - deal.giveF);
+      from.medicine = Math.max(0, from.medicine - deal.giveM);
+      to.water      = Math.max(0, to.water      + deal.giveW);
+      to.food       = Math.max(0, to.food       + deal.giveF);
+      to.medicine   = Math.max(0, to.medicine   + deal.giveM);
+
+      to.water      = Math.max(0, to.water      - deal.recvW);
+      to.food       = Math.max(0, to.food       - deal.recvF);
+      to.medicine   = Math.max(0, to.medicine   - deal.recvM);
+      from.water    = Math.max(0, from.water    + deal.recvW);
+      from.food     = Math.max(0, from.food     + deal.recvF);
+      from.medicine = Math.max(0, from.medicine + deal.recvM);
+
+      from.reputation = Math.min(200, from.reputation + 15);
+      to.reputation   = Math.min(200, to.reputation   + 15);
+      deal.status = 'fulfilled';
+
+    } else {
+      // Alguno traicionó
+      const extra = stormActive ? 10 : 0;
+      if (fVote === 'traicionar') from.reputation = Math.max(0, from.reputation - 25 - extra);
+      if (tVote === 'traicionar') to.reputation   = Math.max(0, to.reputation   - 25 - extra);
+      deal.status = 'broken';
+    }
+  });
+}
+
+function calcFinalPoints(d) {
+  d.tribes.forEach(t => {
+    t.points = (t.water + t.food + t.medicine) + Math.round(t.reputation / 2);
+  });
+}
+
+/* ──────────────────────────────────────────────────────────
+   AUTO-NAVEGAR según fase
+────────────────────────────────────────────────────────── */
+function autoNavigate(d) {
+  if (d.phase === 'playing') {
+    if      (session.role === 'instructor') goTo('s-instructor');
+    else if (session.role === 'player')     goTo('s-tribe');
+  }
+  if (d.phase === 'final') goTo('s-final');
+}
+
+/* ──────────────────────────────────────────────────────────
+   RENDER INSTRUCTOR
+────────────────────────────────────────────────────────── */
+function renderInstructor(d) {
+  if (!d || !isActive('s-instructor')) return;
+
+  set('inst-round-lbl', `Ronda ${d.round}/${MAX_ROUNDS}`);
+  set('inst-ev-icon',   d.currentEvent?.icon || '🌞');
+  set('inst-ev-text',   d.currentEvent?.text || '—');
+  renderTimer(d.timerSec);
+
+  // Grid de tribus
+  const grid = document.getElementById('inst-tribes-grid');
+  if (grid) {
+    grid.innerHTML = d.tribes.map(t => {
+      const repColor = t.reputation >= 80 ? 'var(--green)' : t.reputation >= 40 ? 'var(--gold)' : 'var(--coral)';
+      const voteHtml = t.vote
+        ? `<span class="tc-vote-badge" style="background:${t.vote==='cumplir'?'rgba(46,204,113,.2)':'rgba(255,107,74,.2)'};color:${t.vote==='cumplir'?'var(--green)':'var(--coral)'}">
+             ${t.vote === 'cumplir' ? '✅ Cumple' : '💀 Traiciona'}
+           </span>`
+        : '<span class="tc-vote-badge" style="background:rgba(255,255,255,.06);color:var(--gray)">Sin votar</span>';
+      return `<div class="tribe-card" style="--tc:${t.color}">
+        <div class="tc-head">
+          <span class="tc-emoji">${t.emoji}</span>
+          <span class="tc-name">${esc(t.name)}</span>
+          <span class="tc-rep" style="color:${repColor}">⭐${t.reputation}</span>
+        </div>
+        <div class="res-row">
+          <div class="res-pill"><span class="rl">💧</span><span class="rv">${t.water}</span></div>
+          <div class="res-pill"><span class="rl">🍞</span><span class="rv">${t.food}</span></div>
+          <div class="res-pill"><span class="rl">💊</span><span class="rv">${t.medicine}</span></div>
+        </div>
+        ${voteHtml}
+      </div>`;
+    }).join('');
+  }
+
+  // Panel acuerdos
+  const dl = document.getElementById('inst-deals-list');
+  if (dl) {
+    const roundDeals = d.deals.filter(x => x.round === d.round);
+    dl.innerHTML = roundDeals.length === 0
+      ? '<div style="color:var(--gray);font-size:.78rem">Sin acuerdos esta ronda</div>'
+      : roundDeals.map(renderDealCard).join('');
+  }
+
+  // Panel chat preview
+  const cp = document.getElementById('inst-chat-preview');
+  if (cp) {
+    const last = (d.chat || []).slice(-6);
+    cp.innerHTML = last.length === 0
+      ? '<div style="color:var(--gray);font-size:.78rem">Sin mensajes aún</div>'
+      : last.map(m => `<div style="font-size:.76rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+          <span style="color:var(--teal)">${esc(m.author)}</span>: ${esc(m.text)}
+        </div>`).join('');
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   RENDER TRIBU
+────────────────────────────────────────────────────────── */
+function renderTribeView(d) {
+  if (!d || session.tribeId === null || !isActive('s-tribe')) return;
+  const t = d.tribes[session.tribeId];
+  if (!t) return;
+
+  set('tv-emoji',    t.emoji);
+  set('tv-name',     t.name);
+  set('tv-sub',      `Ronda ${d.round} / ${MAX_ROUNDS}`);
+  set('tv-water',    t.water);
+  set('tv-food',     t.food);
+  set('tv-medicine', t.medicine);
+  set('tv-rep-val',  t.reputation);
+
+  renderTimer(d.timerSec);
+
+  // Barra de reputación (0-200 → 0-100%)
+  const fill = document.getElementById('tv-rep-fill');
+  if (fill) fill.style.width = `${Math.min(100, t.reputation / 2)}%`;
+
+  // Evento
+  const evBox = document.getElementById('tv-ev-box');
+  if (evBox) {
+    evBox.style.display = d.phase === 'playing' ? '' : 'none';
+    set('tv-ev-icon', d.currentEvent?.icon || '🌞');
+    set('tv-ev-text', d.currentEvent?.text || '—');
+  }
+
+  // Acuerdos de esta tribu
+  const dl = document.getElementById('tv-deals-list');
+  if (dl) {
+    const myDeals = (d.deals || []).filter(x => x.fromId === session.tribeId || x.toId === session.tribeId);
+    dl.innerHTML = myDeals.length === 0
+      ? '<div style="color:var(--gray);font-size:.82rem">Sin acuerdos aún</div>'
+      : myDeals.map(renderDealCard).join('');
+  }
+
+  // Badge de voto
+  const vw = document.getElementById('tv-vote-badge-wrap');
+  const vb = document.getElementById('tv-vote-badge');
+  if (vw && vb) {
+    if (t.vote) {
+      vw.style.display = '';
+      vb.style.background = t.vote === 'cumplir' ? 'rgba(46,204,113,.2)' : 'rgba(255,107,74,.2)';
+      vb.style.color      = t.vote === 'cumplir' ? 'var(--green)' : 'var(--coral)';
+      vb.textContent      = t.vote === 'cumplir' ? '✅ Decidiste Cumplir' : '💀 Decidiste Traicionar';
+    } else {
+      vw.style.display = 'none';
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   RENDER FINAL
+────────────────────────────────────────────────────────── */
+function renderFinal(d) {
+  if (!d || !isActive('s-final')) return;
+
+  // Mostrar botón reset solo al instructor
+  const rb = document.getElementById('btn-final-reset');
+  if (rb) rb.style.display = session.role === 'instructor' ? '' : 'none';
+
+  const sorted = [...d.tribes].sort((a, b) => (b.points || 0) - (a.points || 0));
+  const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
+  const podium = document.getElementById('final-podium');
+  if (!podium) return;
+  podium.innerHTML = sorted.map((t, i) => `
+    <div class="podium-item" style="border-left:4px solid ${t.color}">
+      <div class="podium-rank">${medals[i] || (i + 1)}</div>
+      <div class="podium-info">
+        <div class="podium-name">${t.emoji} ${esc(t.name)}</div>
+        <div class="podium-pts">${t.points || 0} puntos · ⭐${t.reputation} reputación</div>
+        <div class="podium-res">💧${t.water} · 🍞${t.food} · 💊${t.medicine}</div>
+      </div>
+    </div>`).join('');
+}
+
+/* ──────────────────────────────────────────────────────────
+   RENDER DEAL CARD
+────────────────────────────────────────────────────────── */
+function renderDealCard(deal) {
+  const from = DB.tribes[deal.fromId];
+  const to   = DB.tribes[deal.toId];
+  const statusLabel = { pending: 'pendiente', fulfilled: 'cumplido', broken: 'traicionado' };
+  return `<div class="deal-card">
+    <div style="font-weight:700">${from?.emoji || '?'} ${esc(from?.name || '?')} ↔ ${to?.emoji || '?'} ${esc(to?.name || '?')}</div>
+    <div style="color:var(--gray);font-size:.76rem">
+      Ofrece: 💧${deal.giveW} 🍞${deal.giveF} 💊${deal.giveM} &nbsp;|&nbsp;
+      Pide: 💧${deal.recvW} 🍞${deal.recvF} 💊${deal.recvM}
+    </div>
+    <span class="deal-status ${deal.status || 'pending'}">${statusLabel[deal.status] || 'pendiente'}</span>
+  </div>`;
+}
+
+/* ──────────────────────────────────────────────────────────
+   RENDER ALL — punto de entrada de actualización de UI
+────────────────────────────────────────────────────────── */
+function renderAll() {
+  const d = loadDB();
+  renderTribePicker();
+  renderLobby(d);
+  renderInstructor(d);
+  renderTribeView(d);
+  renderFinal(d);
+  if (d.timerRunning && !timerInterval) startTimer();
+}
+
+/* ──────────────────────────────────────────────────────────
+   CHAT
+────────────────────────────────────────────────────────── */
+function goToChat() {
+  // Recordar de dónde venimos
+  const active = document.querySelector('.screen.active');
+  if (active && active.id !== 's-chat') prevScreen = active.id;
+  renderChatBadge();
+  renderChatMsgs();
+  goTo('s-chat');
+}
+
+function goBackFromChat() {
+  goTo(prevScreen);
+  renderAll();
+}
+
+function renderChatBadge() {
+  const b = document.getElementById('chat-badge');
+  if (!b) return;
+  if (session.role === 'instructor') {
+    b.textContent = '👨‍🏫 Instructor';
+  } else {
+    const t = DB.tribes?.[session.tribeId];
+    b.textContent = t ? `${t.emoji} ${t.name}` : 'General';
+  }
+}
+
+function setChatTab(tab) {
+  chatTab = tab;
+  document.getElementById('tab-general').classList.toggle('active', tab === 'general');
+  document.getElementById('tab-tribe').classList.toggle('active',   tab === 'tribe');
+  renderChatMsgs();
+}
+
+function renderChatMsgs() {
+  const container = document.getElementById('chat-msgs');
+  if (!container) return;
+  const all = DB.chat || [];
+  const msgs = chatTab === 'tribe'
+    ? all.filter(m => m.system || m.tribeId === session.tribeId)
+    : all;
+
+  if (msgs.length === 0) {
+    container.innerHTML = '<div style="color:var(--gray);font-size:.85rem;text-align:center;margin-top:24px">Sin mensajes aún</div>';
+    return;
+  }
+  container.innerHTML = msgs.map(m => {
+    const isMe     = !m.system && m.author === session.name;
+    const isSystem = !!m.system;
+    const rowClass = isSystem ? 'system' : (isMe ? 'me' : 'other');
+    const tribe    = DB.tribes?.[m.tribeId];
+    const prefix   = tribe ? `${tribe.emoji} ` : '';
+    const time     = formatTime(m.ts);
+    return `<div class="msg-row ${rowClass}">
+      ${!isSystem ? `<div class="msg-meta">${prefix}${esc(m.author)} · ${time}</div>` : ''}
+      <div class="msg-bubble">${esc(m.text)}</div>
+    </div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function sendChatMsg() {
+  const inp = document.getElementById('chat-input');
+  const txt = inp?.value.trim();
+  if (!txt) return;
+  inp.value = '';
+  updateDB(d => {
+    if (!d.chat) d.chat = [];
+    d.chat.push({
+      id:      Date.now(),
+      author:  session.name,
+      tribeId: session.tribeId,
+      tab:     chatTab,
+      text:    txt,
+      ts:      Date.now(),
+      system:  false
+    });
+  });
+  renderChatMsgs();
+}
+
+function postSystemMsg(text) {
+  updateDB(d => {
+    if (!d.chat) d.chat = [];
+    d.chat.push({ id: Date.now(), author: 'Sistema', tribeId: null, tab: 'general', text, ts: Date.now(), system: true });
+  });
+}
+
+/* ──────────────────────────────────────────────────────────
+   MODAL — NEGOCIACIÓN
+────────────────────────────────────────────────────────── */
+function openModalNegotiate() {
+  negTribeId = null;
+  // Llenar grid de tribus (todas excepto la mía)
+  const grid = document.getElementById('neg-tribe-grid');
+  if (grid) {
+    grid.innerHTML = DB.tribes
+      .filter((_, i) => i !== session.tribeId)
+      .map(t => `<div class="tribe-pick-btn" data-id="${t.id}" onclick="pickNegTribe(${t.id})">${t.emoji} ${esc(t.name)}</div>`)
+      .join('');
+  }
+  // Resetear campos
+  ['neg-give-w','neg-give-f','neg-give-m','neg-recv-w','neg-recv-f','neg-recv-m'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '0';
+  });
+  openModal('modal-negotiate');
+}
+
+function pickNegTribe(id) {
+  negTribeId = id;
+  document.querySelectorAll('#neg-tribe-grid .tribe-pick-btn').forEach(btn => {
+    btn.classList.toggle('sel', parseInt(btn.dataset.id) === id);
+  });
+}
+
+function submitNegotiation() {
+  if (negTribeId === null) { showToast('⚠️ Selecciona una tribu', 'warning'); return; }
+  const gW = intVal('neg-give-w');
+  const gF = intVal('neg-give-f');
+  const gM = intVal('neg-give-m');
+  const rW = intVal('neg-recv-w');
+  const rF = intVal('neg-recv-f');
+  const rM = intVal('neg-recv-m');
+  if (gW + gF + gM + rW + rF + rM === 0) { showToast('⚠️ El acuerdo no puede ser vacío', 'warning'); return; }
+
+  // Verificar recursos suficientes
+  const myTribe = DB.tribes[session.tribeId];
+  if (gW > myTribe.water || gF > myTribe.food || gM > myTribe.medicine) {
+    showToast('⚠️ No tienes suficientes recursos para ofrecer', 'warning'); return;
+  }
+
+  updateDB(d => {
+    if (!d.deals) d.deals = [];
+    d.deals.push({
+      id:     Date.now(),
+      fromId: session.tribeId,
+      toId:   negTribeId,
+      giveW: gW, giveF: gF, giveM: gM,
+      recvW: rW, recvF: rF, recvM: rM,
+      round:  d.round,
+      status: 'pending'
+    });
+  });
+  closeModal('modal-negotiate');
+  showToast('📜 Acuerdo registrado', 'success');
+  const toT = DB.tribes[negTribeId];
+  postSystemMsg(`📜 ${DB.tribes[session.tribeId]?.emoji} ${DB.tribes[session.tribeId]?.name} propuso un acuerdo a ${toT?.emoji} ${toT?.name}`);
+}
+
+/* ──────────────────────────────────────────────────────────
+   MODAL — VOTACIÓN
+────────────────────────────────────────────────────────── */
+function openModalVote() {
+  if (DB.phase !== 'playing') { showToast('⚠️ El juego aún no ha comenzado', 'warning'); return; }
+  const myVote = DB.tribes?.[session.tribeId]?.vote;
+  const opts   = document.getElementById('vote-options');
+  const done   = document.getElementById('vote-already');
+  if (opts) opts.style.display = myVote ? 'none' : '';
+  if (done) {
+    done.style.display = myVote ? '' : 'none';
+    set('vote-already-icon', myVote === 'cumplir' ? '✅' : '💀');
+    set('vote-already-text', myVote === 'cumplir' ? 'Ya decidiste Cumplir' : 'Ya decidiste Traicionar');
+  }
+  openModal('modal-vote');
+}
+
+function submitVote(choice) {
+  updateDB(d => {
+    if (d.tribes[session.tribeId]) d.tribes[session.tribeId].vote = choice;
+  });
+  closeModal('modal-vote');
+  const msg = choice === 'cumplir' ? '✅ Votaste: Cumplir' : '💀 Votaste: Traicionar';
+  showToast(msg, choice === 'cumplir' ? 'success' : 'warning');
+  renderTribeView(DB);
+}
+
+/* ──────────────────────────────────────────────────────────
+   MODAL — EDITAR RECURSOS (instructor)
+────────────────────────────────────────────────────────── */
+function openModalEditRes() {
+  resTribeId = null;
+  const grid = document.getElementById('res-tribe-grid');
+  if (grid) {
+    grid.innerHTML = DB.tribes.map(t =>
+      `<div class="tribe-pick-btn" data-id="${t.id}" onclick="pickResTribe(${t.id})">${t.emoji} ${esc(t.name)}</div>`
+    ).join('');
+  }
+  document.getElementById('res-form').style.display = 'none';
+  openModal('modal-edit-res');
+}
+
+function pickResTribe(id) {
+  resTribeId = id;
+  document.querySelectorAll('#res-tribe-grid .tribe-pick-btn').forEach(btn => {
+    btn.classList.toggle('sel', parseInt(btn.dataset.id) === id);
+  });
+  const t = DB.tribes[id];
+  document.getElementById('res-w').value = t.water;
+  document.getElementById('res-f').value = t.food;
+  document.getElementById('res-m').value = t.medicine;
+  document.getElementById('res-form').style.display = '';
+}
+
+function saveResources() {
+  if (resTribeId === null) return;
+  updateDB(d => {
+    d.tribes[resTribeId].water    = intVal('res-w');
+    d.tribes[resTribeId].food     = intVal('res-f');
+    d.tribes[resTribeId].medicine = intVal('res-m');
+  });
+  closeModal('modal-edit-res');
+  showToast('📦 Recursos actualizados', 'success');
+}
+
+/* ──────────────────────────────────────────────────────────
+   RESET
+────────────────────────────────────────────────────────── */
+function confirmReset() { openModal('modal-reset'); }
+
+function doReset() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  DB = freshState();
+  session = { name: '', role: 'player', tribeId: null };
+  selectedRole  = 'player';
+  selectedTribe = null;
+  chatTab = 'general';
+
+  // Limpiar campos del login
+  const uname = document.getElementById('user-name');
+  const icode = document.getElementById('inst-code');
+  if (uname) uname.value = '';
+  if (icode) icode.value = '';
+
+  // Resetear UI del login
+  setRole('player');
+  renderTribePicker();
+
+  closeModal('modal-reset');
+  goTo('s-login');
+  showToast('🔄 Partida reiniciada', 'info');
+}
+
+/* ──────────────────────────────────────────────────────────
+   HELPERS DE MODAL
+────────────────────────────────────────────────────────── */
+function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+
+// Cerrar modal al hacer clic en el fondo oscuro
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+/* ──────────────────────────────────────────────────────────
+   TOAST
+────────────────────────────────────────────────────────── */
+let toastTimer = null;
+function showToast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+/* ──────────────────────────────────────────────────────────
+   PEQUEÑOS UTILS
+────────────────────────────────────────────────────────── */
+function esc(s) {
+  const d = document.createElement('div');
+  d.innerText = String(s ?? '');
+  return d.innerHTML;
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = String(val ?? '');
+}
+
+function isActive(id) {
+  return document.getElementById(id)?.classList.contains('active') ?? false;
+}
+
+function intVal(id) {
+  return Math.max(0, parseInt(document.getElementById(id)?.value || '0', 10) || 0);
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+/* ──────────────────────────────────────────────────────────
+   INICIALIZACIÓN
+────────────────────────────────────────────────────────── */
+(function init() {
+  setRole('player');          // estado inicial del selector de rol
+  renderTribePicker();        // poblar selector de tribus
+  goTo('s-login');            // comenzar en login
+})();
+</script>
+</body>
+</html>
