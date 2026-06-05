@@ -155,9 +155,26 @@
     .chat-status-badge.closed { background:rgba(231,76,60,.2);   color:var(--coral); }
     .deal-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 10px 12px; font-size: .8rem; display: flex; flex-direction: column; gap: 5px; }
     .deal-status { display: inline-block; padding: 2px 9px; border-radius: 50px; font-size: .68rem; font-weight: 700; }
+    .deal-status.proposed   { background: rgba(244,196,48,.2);  color: var(--gold);  }
     .deal-status.pending    { background: rgba(244,196,48,.2);  color: var(--gold);  }
     .deal-status.fulfilled  { background: rgba(46,204,113,.2);  color: var(--green); }
+    .deal-status.rejected   { background: rgba(136,153,170,.2); color: var(--gray);  }
     .deal-status.broken     { background: rgba(231,76,60,.2);   color: var(--red);   }
+    .deal-actions { display: flex; gap: 6px; margin-top: 4px; }
+    .btn-accept { background: rgba(46,204,113,.18); border: 1.5px solid rgba(46,204,113,.5); color: var(--green); padding: 5px 14px; border-radius: 50px; font-size: .75rem; font-weight: 700; cursor: pointer; transition: background .15s; }
+    .btn-accept:hover { background: rgba(46,204,113,.35); }
+    .btn-reject { background: rgba(231,76,60,.12); border: 1.5px solid rgba(231,76,60,.4); color: var(--coral); padding: 5px 14px; border-radius: 50px; font-size: .75rem; font-weight: 700; cursor: pointer; transition: background .15s; }
+    .btn-reject:hover { background: rgba(231,76,60,.28); }
+    .notif-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--coral); color: #fff; font-size: .62rem; font-weight: 800; min-width: 16px; height: 16px; border-radius: 50px; padding: 0 4px; margin-left: 4px; animation: pulse 1.2s infinite; }
+    .vote-info-box { background: rgba(11,212,184,.06); border: 1px solid rgba(11,212,184,.2); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: .82rem; line-height: 1.6; }
+    .vote-info-row { display: flex; justify-content: space-between; font-size: .78rem; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .vote-info-row:last-child { border-bottom: none; }
+    .incoming-deal-card { background: rgba(244,196,48,.06); border: 1.5px solid rgba(244,196,48,.25); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .incoming-from { font-family: var(--fh); font-size: .88rem; font-weight: 700; color: var(--gold); }
+    .incoming-terms { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .incoming-side { background: rgba(0,0,0,.2); border-radius: 8px; padding: 7px 10px; font-size: .76rem; }
+    .incoming-side strong { display: block; font-size: .68rem; color: var(--gray); margin-bottom: 3px; text-transform: uppercase; letter-spacing: .5px; }
+    .incoming-empty { text-align: center; color: var(--gray); padding: 24px 0; font-size: .88rem; }
 
     /* ── LOGIN ──────────────────────────────────────────────────── */
     #s-login { align-items: center; justify-content: center; background: linear-gradient(160deg,#061a35 0%,#0a2a50 50%,#0d3b6e 100%); }
@@ -662,6 +679,7 @@
   <div class="tribe-bottom">
     <button class="btn btn-gold btn-sm" onclick="goToChat()">💬 Chat</button>
     <button class="btn btn-o btn-sm"    onclick="openModalNegotiate()">🤝 Negociar</button>
+    <button class="btn btn-sm" id="btn-incoming" style="background:rgba(244,196,48,.12);border:1.5px solid rgba(244,196,48,.3);color:var(--gold)" onclick="openModalIncoming()">📨 Propuestas<span id="incoming-badge" class="notif-badge" style="display:none">0</span></button>
     <button class="btn btn-p btn-sm"    onclick="openModalVote()">⚖️ Votar</button>
   </div>
 </div>
@@ -756,6 +774,7 @@
     <div class="podium" id="final-podium"></div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
       <button class="btn btn-o btn-sm" onclick="goToChat()">💬 Ver Chat</button>
+      <button class="btn btn-o btn-sm" id="btn-final-back" onclick="playerGoHome()">🏠 Volver al Inicio</button>
       <button class="btn btn-danger btn-sm" id="btn-final-reset" style="display:none" onclick="confirmReset()">🔄 Nueva Partida</button>
     </div>
   </div>
@@ -792,25 +811,50 @@
 <div class="modal" id="modal-vote">
   <div class="modal-box">
     <button class="modal-close" onclick="closeModal('modal-vote')">✕</button>
-    <div class="modal-title">⚖️ Decisión Final</div>
-    <p style="font-size:.85rem;color:var(--gray);margin-bottom:16px">
-      Elige cómo actuará tu tribu con los acuerdos pendientes de esta ronda.
-      Esta decisión es privada.
-    </p>
+    <div class="modal-title">⚖️ Voto de Compromisos Verbales</div>
+
+    <!-- Explicación del objetivo -->
+    <div style="background:rgba(255,255,255,.04);border-left:3px solid var(--teal);padding:10px 12px;border-radius:6px;font-size:.8rem;color:var(--gray);line-height:1.5;margin-bottom:12px">
+      🎯 <strong style="color:var(--white)">¿Para qué sirve este voto?</strong><br>
+      Durante la ronda hiciste compromisos <em>verbales</em> con otras tribus fuera de la app.
+      Este voto registra si los vas a honrar o traicionar. El instructor revelará los resultados al final de la ronda.
+    </div>
+
+    <!-- Resumen de tu situación -->
+    <div class="vote-info-box" id="vote-summary-box"></div>
+
+    <!-- Estado: ya votaste -->
     <div id="vote-already" style="display:none;text-align:center;padding:20px 0">
       <div style="font-size:2rem" id="vote-already-icon">✅</div>
       <div id="vote-already-text" style="margin-top:8px;font-weight:700">Ya votaste</div>
+      <div id="vote-already-sub" style="font-size:.78rem;color:var(--gray);margin-top:4px"></div>
     </div>
+
+    <!-- Opciones -->
     <div id="vote-options" class="vote-grid">
       <div class="vote-opt cumplir" onclick="submitVote('cumplir')">
-        <h3>✅ Cumplir los Acuerdos</h3>
-        <p>Transfiere los recursos pactados. +15 reputación por cada acuerdo cumplido.</p>
+        <h3>✅ Cumplir mi Palabra</h3>
+        <p>Honras los compromisos verbales de esta ronda. <strong style="color:var(--green)">+15 reputación.</strong> Las demás tribus confiarán más en ti.</p>
       </div>
       <div class="vote-opt traicionar" onclick="submitVote('traicionar')">
-        <h3>💀 Traicionar los Acuerdos</h3>
-        <p>Conservas tus recursos pero −25 reputación. La otra tribu lo sabrá.</p>
+        <h3>💀 Traicionar</h3>
+        <p>Rompes los compromisos. <strong style="color:var(--coral)">−25 reputación.</strong> Ganas a corto plazo pero pierdes aliados.</p>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MODAL — PROPUESTAS ENTRANTES
+════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-incoming">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-incoming')">✕</button>
+    <div class="modal-title">📨 Propuestas de Intercambio</div>
+    <p style="font-size:.8rem;color:var(--gray);margin-bottom:14px">
+      Otras tribus te han enviado propuestas. Si <strong style="color:var(--green)">aceptas</strong>, el intercambio de recursos ocurre <em>inmediatamente</em> y ambas tribus ganan +10 reputación. Si <strong style="color:var(--coral)">rechazas</strong>, la propuesta se cancela.
+    </p>
+    <div id="incoming-list"></div>
   </div>
 </div>
 
@@ -1281,9 +1325,14 @@ function renderTimer(sec) {
 function instructorStartRound() {
   const d = loadDB();
 
-  // Si ya estamos en juego, resolver ronda anterior primero
+  // Resolver ronda anterior primero
   if (d.phase === 'playing') {
     resolveRound(d);
+    // Anunciar resultados de votos en chat
+    const cumplieron  = d.tribes.filter(t => t.vote === 'cumplir').map(t => `${t.emoji} ${t.name}`);
+    const traicionaron = d.tribes.filter(t => t.vote === 'traicionar').map(t => `${t.emoji} ${t.name}`);
+    if (cumplieron.length)   d.chat = d.chat || [], d.chat.push({ id: Date.now()+1, author: 'Sistema', tribeId: null, tab: 'general', text: `✅ Ronda ${d.round} — Cumplieron su palabra: ${cumplieron.join(', ')}`, ts: Date.now()+1, system: true });
+    if (traicionaron.length) d.chat = d.chat || [], d.chat.push({ id: Date.now()+2, author: 'Sistema', tribeId: null, tab: 'general', text: `💀 Ronda ${d.round} — Traicionaron: ${traicionaron.join(', ')}`, ts: Date.now()+2, system: true });
     // Avanzar ronda
     d.round += 1;
     if (d.round > MAX_ROUNDS) {
@@ -1332,41 +1381,23 @@ function applyEvent(d, ev) {
 
 function resolveRound(d) {
   const stormActive = d.currentEvent?.icon === '🌊';
-  d.deals.filter(deal => deal.status === 'pending' && deal.round === d.round).forEach(deal => {
-    const from = d.tribes[deal.fromId];
-    const to   = d.tribes[deal.toId];
-    if (!from || !to) return;
 
-    const fVote = from.vote;
-    const tVote = to.vote;
-
-    if (fVote === 'cumplir' && tVote === 'cumplir') {
-      // Ambos cumplen: transferir recursos mutuamente
-      from.water    = Math.max(0, from.water    - deal.giveW);
-      from.food     = Math.max(0, from.food     - deal.giveF);
-      from.medicine = Math.max(0, from.medicine - deal.giveM);
-      to.water      = Math.max(0, to.water      + deal.giveW);
-      to.food       = Math.max(0, to.food       + deal.giveF);
-      to.medicine   = Math.max(0, to.medicine   + deal.giveM);
-
-      to.water      = Math.max(0, to.water      - deal.recvW);
-      to.food       = Math.max(0, to.food       - deal.recvF);
-      to.medicine   = Math.max(0, to.medicine   - deal.recvM);
-      from.water    = Math.max(0, from.water    + deal.recvW);
-      from.food     = Math.max(0, from.food     + deal.recvF);
-      from.medicine = Math.max(0, from.medicine + deal.recvM);
-
-      from.reputation = Math.min(200, from.reputation + 15);
-      to.reputation   = Math.min(200, to.reputation   + 15);
-      deal.status = 'fulfilled';
-
-    } else {
-      // Alguno traicionó
-      const extra = stormActive ? 10 : 0;
-      if (fVote === 'traicionar') from.reputation = Math.max(0, from.reputation - 25 - extra);
-      if (tVote === 'traicionar') to.reputation   = Math.max(0, to.reputation   - 25 - extra);
-      deal.status = 'broken';
+  // Expirar propuestas que nadie aceptó en esta ronda
+  d.deals.forEach(deal => {
+    if (deal.status === 'proposed' && deal.round === d.round) {
+      deal.status = 'rejected';  // expirada por tiempo
     }
+  });
+
+  // Procesar votos: cada tribu responde por sus compromisos verbales
+  d.tribes.forEach(tribe => {
+    if (tribe.vote === 'cumplir') {
+      tribe.reputation = Math.min(200, tribe.reputation + 15);
+    } else if (tribe.vote === 'traicionar') {
+      const extra = stormActive ? 10 : 0;
+      tribe.reputation = Math.max(0, tribe.reputation - 25 - extra);
+    }
+    // Voto null = abstención → sin cambio de reputación por esta vía
   });
 }
 
@@ -1430,7 +1461,7 @@ function renderInstructor(d) {
     const roundDeals = d.deals.filter(x => x.round === d.round);
     dl.innerHTML = roundDeals.length === 0
       ? '<div style="color:var(--gray);font-size:.78rem">Sin acuerdos esta ronda</div>'
-      : roundDeals.map(renderDealCard).join('');
+      : roundDeals.map(d => renderDealCard(d, null)).join('');
   }
 
   // Panel chat preview
@@ -1481,7 +1512,15 @@ function renderTribeView(d) {
     const myDeals = (d.deals || []).filter(x => x.fromId === session.tribeId || x.toId === session.tribeId);
     dl.innerHTML = myDeals.length === 0
       ? '<div style="color:var(--gray);font-size:.82rem">Sin acuerdos aún</div>'
-      : myDeals.map(renderDealCard).join('');
+      : myDeals.map(deal => renderDealCard(deal, session.tribeId)).join('');
+  }
+
+  // Badge de propuestas entrantes
+  const incomingCount = (d.deals || []).filter(x => x.toId === session.tribeId && x.status === 'proposed').length;
+  const badge = document.getElementById('incoming-badge');
+  if (badge) {
+    badge.textContent  = incomingCount;
+    badge.style.display = incomingCount > 0 ? 'inline-flex' : 'none';
   }
 
   // Badge de voto
@@ -1509,6 +1548,10 @@ function renderFinal(d) {
   const rb = document.getElementById('btn-final-reset');
   if (rb) rb.style.display = session.role === 'instructor' ? '' : 'none';
 
+  // Mostrar botón "Volver al Inicio" solo a jugadores
+  const bb = document.getElementById('btn-final-back');
+  if (bb) bb.style.display = session.role === 'player' ? '' : 'none';
+
   const sorted = [...d.tribes].sort((a, b) => (b.points || 0) - (a.points || 0));
   const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
   const podium = document.getElementById('final-podium');
@@ -1527,17 +1570,44 @@ function renderFinal(d) {
 /* ──────────────────────────────────────────────────────────
    RENDER DEAL CARD
 ────────────────────────────────────────────────────────── */
-function renderDealCard(deal) {
+function renderDealCard(deal, viewerId) {
   const from = DB.tribes[deal.fromId];
   const to   = DB.tribes[deal.toId];
-  const statusLabel = { pending: 'pendiente', fulfilled: 'cumplido', broken: 'traicionado' };
+  const statusLabel = {
+    proposed:  '📨 esperando respuesta',
+    fulfilled: '✅ completado',
+    rejected:  '❌ rechazado',
+    pending:   '⏳ pendiente',
+    broken:    '💀 traicionado'
+  };
+  const iAmSender   = viewerId === deal.fromId;
+  const iAmReceiver = viewerId === deal.toId;
+
+  // Descripción del intercambio desde el punto de vista del espectador
+  let termsHtml = `<div style="color:var(--gray);font-size:.76rem">
+    ${from?.emoji} da: 💧${deal.giveW} 🍞${deal.giveF} 💊${deal.giveM}
+    &nbsp;→&nbsp;
+    ${to?.emoji} da: 💧${deal.recvW} 🍞${deal.recvF} 💊${deal.recvM}
+  </div>`;
+
+  if (iAmReceiver && deal.status === 'proposed') {
+    termsHtml = `<div style="color:var(--gray);font-size:.76rem">
+      <strong style="color:var(--gold)">Recibes:</strong> 💧${deal.giveW} 🍞${deal.giveF} 💊${deal.giveM}
+      &nbsp;·&nbsp;
+      <strong style="color:var(--coral)">Das:</strong> 💧${deal.recvW} 🍞${deal.recvF} 💊${deal.recvM}
+    </div>
+    <div class="deal-actions">
+      <button class="btn-accept" onclick="acceptDeal(${deal.id})">✅ Aceptar</button>
+      <button class="btn-reject" onclick="rejectDeal(${deal.id})">❌ Rechazar</button>
+    </div>`;
+  } else if (iAmSender && deal.status === 'proposed') {
+    termsHtml += `<div style="font-size:.72rem;color:var(--gray);font-style:italic">⏳ Esperando que ${to?.emoji} ${esc(to?.name || '?')} acepte…</div>`;
+  }
+
   return `<div class="deal-card">
     <div style="font-weight:700">${from?.emoji || '?'} ${esc(from?.name || '?')} ↔ ${to?.emoji || '?'} ${esc(to?.name || '?')}</div>
-    <div style="color:var(--gray);font-size:.76rem">
-      Ofrece: 💧${deal.giveW} 🍞${deal.giveF} 💊${deal.giveM} &nbsp;|&nbsp;
-      Pide: 💧${deal.recvW} 🍞${deal.recvF} 💊${deal.recvM}
-    </div>
-    <span class="deal-status ${deal.status || 'pending'}">${statusLabel[deal.status] || 'pendiente'}</span>
+    ${termsHtml}
+    <span class="deal-status ${deal.status || 'proposed'}">${statusLabel[deal.status] || 'pendiente'}</span>
   </div>`;
 }
 
@@ -2036,28 +2106,172 @@ function submitNegotiation() {
       giveW: gW, giveF: gF, giveM: gM,
       recvW: rW, recvF: rF, recvM: rM,
       round:  d.round,
-      status: 'pending'
+      status: 'proposed'   // esperando que la otra tribu acepte o rechace
     });
   });
   closeModal('modal-negotiate');
-  showToast('📜 Acuerdo registrado', 'success');
+  showToast('📨 Propuesta enviada — espera respuesta', 'success');
   const toT = DB.tribes[negTribeId];
-  postSystemMsg(`📜 ${DB.tribes[session.tribeId]?.emoji} ${DB.tribes[session.tribeId]?.name} propuso un acuerdo a ${toT?.emoji} ${toT?.name}`);
+  postSystemMsg(`📨 ${DB.tribes[session.tribeId]?.emoji} ${DB.tribes[session.tribeId]?.name} envió una propuesta de intercambio a ${toT?.emoji} ${toT?.name}`);
 }
 
 /* ──────────────────────────────────────────────────────────
-   MODAL — VOTACIÓN
+   MODAL — PROPUESTAS ENTRANTES (nueva tribu destinataria)
+────────────────────────────────────────────────────────── */
+function openModalIncoming() {
+  const incoming = (DB.deals || []).filter(d => d.toId === session.tribeId && d.status === 'proposed');
+  const list = document.getElementById('incoming-list');
+  if (!list) return;
+
+  if (incoming.length === 0) {
+    list.innerHTML = '<div class="incoming-empty">📭 No tienes propuestas pendientes en este momento.</div>';
+  } else {
+    list.innerHTML = incoming.map(deal => {
+      const from = DB.tribes[deal.fromId];
+      const myTribe = DB.tribes[session.tribeId];
+      // Verificar si la otra tribu tiene suficientes recursos para cumplir su parte
+      const fromCanPay = from && (from.water >= deal.giveW && from.food >= deal.giveF && from.medicine >= deal.giveM);
+      const iCanPay    = myTribe && (myTribe.water >= deal.recvW && myTribe.food >= deal.recvF && myTribe.medicine >= deal.recvM);
+
+      return `<div class="incoming-deal-card">
+        <div class="incoming-from">${from?.emoji || '?'} ${esc(from?.name || '?')} te propone:</div>
+        <div class="incoming-terms">
+          <div class="incoming-side">
+            <strong>Ellos te dan 🎁</strong>
+            💧 ${deal.giveW} agua<br>
+            🍞 ${deal.giveF} comida<br>
+            💊 ${deal.giveM} medicina
+          </div>
+          <div class="incoming-side">
+            <strong>Tú les das 📤</strong>
+            💧 ${deal.recvW} agua<br>
+            🍞 ${deal.recvF} comida<br>
+            💊 ${deal.recvM} medicina
+          </div>
+        </div>
+        ${!iCanPay ? `<div style="color:var(--coral);font-size:.74rem">⚠️ No tienes suficientes recursos para cumplir tu parte.</div>` : ''}
+        <div style="font-size:.73rem;color:var(--gray)">Si aceptas: ambas tribus ganan <strong style="color:var(--green)">+10 ⭐ reputación</strong> y el intercambio ocurre ahora.</div>
+        <div class="deal-actions">
+          <button class="btn-accept" onclick="acceptDeal(${deal.id})">✅ Aceptar</button>
+          <button class="btn-reject" onclick="rejectDeal(${deal.id})">❌ Rechazar</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  openModal('modal-incoming');
+}
+
+function acceptDeal(dealId) {
+  const deal = (DB.deals || []).find(d => d.id === dealId);
+  if (!deal || deal.status !== 'proposed') return;
+
+  const myTribe  = DB.tribes[session.tribeId];
+  const fromTribe = DB.tribes[deal.fromId];
+
+  // Verificar recursos de ambas partes
+  if (!myTribe || !fromTribe) return;
+  if (myTribe.water < deal.recvW || myTribe.food < deal.recvF || myTribe.medicine < deal.recvM) {
+    showToast('⚠️ No tienes suficientes recursos para este intercambio', 'warning');
+    return;
+  }
+  if (fromTribe.water < deal.giveW || fromTribe.food < deal.giveF || fromTribe.medicine < deal.giveM) {
+    showToast('⚠️ La otra tribu ya no tiene suficientes recursos', 'warning');
+    return;
+  }
+
+  updateDB(d => {
+    const idx  = d.deals.findIndex(x => x.id === dealId);
+    if (idx < 0) return;
+    d.deals[idx].status = 'fulfilled';
+
+    const from = d.tribes[deal.fromId];
+    const to   = d.tribes[deal.toId];
+
+    // Transferencia inmediata: from → to (giveW/F/M)
+    from.water    = Math.max(0, from.water    - deal.giveW);
+    from.food     = Math.max(0, from.food     - deal.giveF);
+    from.medicine = Math.max(0, from.medicine - deal.giveM);
+    to.water      += deal.giveW;
+    to.food       += deal.giveF;
+    to.medicine   += deal.giveM;
+
+    // Transferencia: to → from (recvW/F/M)
+    to.water      = Math.max(0, to.water      - deal.recvW);
+    to.food       = Math.max(0, to.food       - deal.recvF);
+    to.medicine   = Math.max(0, to.medicine   - deal.recvM);
+    from.water    += deal.recvW;
+    from.food     += deal.recvF;
+    from.medicine += deal.recvM;
+
+    // Reputación por intercambio exitoso
+    from.reputation = Math.min(200, from.reputation + 10);
+    to.reputation   = Math.min(200, to.reputation   + 10);
+  });
+
+  closeModal('modal-incoming');
+  const from = DB.tribes[deal.fromId];
+  showToast(`✅ ¡Intercambio realizado con ${from?.emoji} ${from?.name}! +10 ⭐`, 'success');
+  postSystemMsg(`🤝 ${DB.tribes[session.tribeId]?.emoji} ${DB.tribes[session.tribeId]?.name} aceptó el intercambio con ${from?.emoji} ${from?.name} — ¡trato completado!`);
+  renderTribeView(DB);
+}
+
+function rejectDeal(dealId) {
+  updateDB(d => {
+    const idx = d.deals.findIndex(x => x.id === dealId);
+    if (idx >= 0) d.deals[idx].status = 'rejected';
+  });
+  // Reabrir modal para ver restantes
+  showToast('❌ Propuesta rechazada', 'warning');
+  const deal = DB.deals.find(d => d.id === dealId);
+  if (deal) {
+    const from = DB.tribes[deal.fromId];
+    postSystemMsg(`❌ ${DB.tribes[session.tribeId]?.emoji} ${DB.tribes[session.tribeId]?.name} rechazó la propuesta de ${from?.emoji} ${from?.name}`);
+  }
+  openModalIncoming(); // recargar modal con las restantes
+}
+
+/* ──────────────────────────────────────────────────────────
+   MODAL — VOTACIÓN (compromisos verbales)
 ────────────────────────────────────────────────────────── */
 function openModalVote() {
   if (DB.phase !== 'playing') { showToast('⚠️ El juego aún no ha comenzado', 'warning'); return; }
-  const myVote = DB.tribes?.[session.tribeId]?.vote;
-  const opts   = document.getElementById('vote-options');
-  const done   = document.getElementById('vote-already');
+  const myTribe = DB.tribes?.[session.tribeId];
+  const myVote  = myTribe?.vote;
+  const opts    = document.getElementById('vote-options');
+  const done    = document.getElementById('vote-already');
+
+  // Construir resumen informativo
+  const summaryBox = document.getElementById('vote-summary-box');
+  if (summaryBox && myTribe) {
+    const fulfilled = (DB.deals || []).filter(d =>
+      (d.fromId === session.tribeId || d.toId === session.tribeId) && d.status === 'fulfilled' && d.round === DB.round
+    ).length;
+    const proposed = (DB.deals || []).filter(d =>
+      d.fromId === session.tribeId && d.status === 'proposed' && d.round === DB.round
+    ).length;
+
+    summaryBox.innerHTML = `
+      <div class="vote-info-row"><span>⭐ Reputación actual</span><span style="color:var(--gold);font-weight:700">${myTribe.reputation}/200</span></div>
+      <div class="vote-info-row"><span>🤝 Intercambios completados esta ronda</span><span style="color:var(--green);font-weight:700">${fulfilled}</span></div>
+      <div class="vote-info-row"><span>📨 Propuestas tuyas aún pendientes</span><span style="color:var(--gold)">${proposed}</span></div>
+      <div class="vote-info-row"><span>✅ Si cumples tu palabra</span><span style="color:var(--green)">+15 ⭐ reputación</span></div>
+      <div class="vote-info-row"><span>💀 Si traicionas</span><span style="color:var(--coral)">−25 ⭐ reputación</span></div>
+      <div style="margin-top:8px;font-size:.74rem;color:var(--gray)">
+        Ronda ${DB.round}/${MAX_ROUNDS} · Puntos finales = recursos totales + reputación ÷ 2
+      </div>`;
+  }
+
   if (opts) opts.style.display = myVote ? 'none' : '';
   if (done) {
     done.style.display = myVote ? '' : 'none';
-    set('vote-already-icon', myVote === 'cumplir' ? '✅' : '💀');
-    set('vote-already-text', myVote === 'cumplir' ? 'Ya decidiste Cumplir' : 'Ya decidiste Traicionar');
+    if (myVote) {
+      set('vote-already-icon', myVote === 'cumplir' ? '✅' : '💀');
+      set('vote-already-text', myVote === 'cumplir' ? 'Decidiste cumplir tu palabra' : 'Decidiste traicionar');
+      const subEl = document.getElementById('vote-already-sub');
+      if (subEl) subEl.textContent = myVote === 'cumplir'
+        ? '+15 reputación se aplicarán al finalizar la ronda'
+        : '−25 reputación se aplicarán al finalizar la ronda';
+    }
   }
   openModal('modal-vote');
 }
@@ -2067,7 +2281,9 @@ function submitVote(choice) {
     if (d.tribes[session.tribeId]) d.tribes[session.tribeId].vote = choice;
   });
   closeModal('modal-vote');
-  const msg = choice === 'cumplir' ? '✅ Votaste: Cumplir' : '💀 Votaste: Traicionar';
+  const msg = choice === 'cumplir'
+    ? '✅ Votaste cumplir — +15 ⭐ al final de la ronda'
+    : '💀 Votaste traicionar — −25 ⭐ al final de la ronda';
   showToast(msg, choice === 'cumplir' ? 'success' : 'warning');
   renderTribeView(DB);
 }
@@ -2114,6 +2330,31 @@ function saveResources() {
    RESET
 ────────────────────────────────────────────────────────── */
 function confirmReset() { openModal('modal-reset'); }
+
+function playerGoHome() {
+  // El jugador vuelve al login sin borrar el estado del juego
+  if (_fbListener) { _fbListener.off(); _fbListener = null; }
+  _roomCode = null;
+  session   = { name: '', role: 'player', tribeId: null };
+  selectedRole  = 'player';
+  selectedTribe = null;
+  chatTab       = 'general';
+  botHistory    = [];
+
+  const uname = document.getElementById('user-name');
+  const icode = document.getElementById('inst-code');
+  const jinp  = document.getElementById('join-code-input');
+  const jw    = document.getElementById('join-room-wrap');
+  if (uname) uname.value = '';
+  if (icode) icode.value = '';
+  if (jinp)  jinp.value  = '';
+  if (jw)    jw.style.display = 'none';
+
+  setRole('player');
+  renderTribePicker();
+  goTo('s-login');
+  showToast('👋 ¡Hasta la próxima, sobreviviente!', 'info');
+}
 
 function doReset() {
   clearInterval(timerInterval);
