@@ -6,6 +6,48 @@
   <title>🏝️ La Isla de los Acuerdos</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Firebase compat SDK: defer garantiza que se ejecutan DESPUÉS del HTML -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"
+          onload="window._fbAppLoaded=true;_tryInitFirebase()"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"
+          onload="window._fbDbLoaded=true;_tryInitFirebase()"></script>
+  <script>
+    window._fbAppLoaded = false;
+    window._fbDbLoaded  = false;
+    window._fbDB        = null;
+
+    function _tryInitFirebase() {
+      if (!window._fbAppLoaded || !window._fbDbLoaded) return; // esperar los dos scripts
+      if (window._fbDB) return;                                 // ya inicializado
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp({
+            apiKey:            "AIzaSyC-vKJDadkn6WX9Jy3gmikBmr5FHqDqeQg",
+            authDomain:        "prueba-1-737e0.firebaseapp.com",
+            databaseURL:       "https://prueba-1-737e0.firebaseio.com",
+            projectId:         "prueba-1-737e0",
+            storageBucket:     "prueba-1-737e0.firebasestorage.app",
+            messagingSenderId: "339529020174",
+            appId:             "1:339529020174:web:e5b2e222b25c660ba75d5f"
+          });
+        }
+        window._fbDB = firebase.database();
+        console.log('🔥 Firebase listo');
+        // Si hay una sala pendiente de conectar, hacerlo ahora
+        if (window._pendingRoomCode) {
+          _attachListener(window._pendingRoomCode);
+          window._pendingRoomCode = null;
+        }
+      } catch(e) {
+        console.error('Firebase init error:', e);
+      }
+    }
+    // Fallback: si onload no dispara (algunos navegadores), reintentar cada 200ms
+    setTimeout(function _fbPoll() {
+      if (!window._fbDB && typeof firebase !== 'undefined') _tryInitFirebase();
+      else if (!window._fbDB) setTimeout(_fbPoll, 200);
+    }, 200);
+  </script>
   <style>
     /* ── RESET & TOKENS ─────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -91,6 +133,26 @@
     .vote-opt p  { font-size: .78rem; color: var(--gray); }
     .vote-opt.cumplir    { border-color: rgba(46,204,113,.4);  background: rgba(46,204,113,.08);  }
     .vote-opt.traicionar { border-color: rgba(255,107,74,.4);  background: rgba(255,107,74,.08);  }
+
+    /* ── CHAT BOT & EXTRAS ──────────────────────────────────────────── */
+    .chat-tab-bot { display: none; } /* legacy - replaced by .chat-tab.bot-tab */
+    .chat-locked-banner-legacy { display: none; } /* replaced by .chat-locked-banner with .visible toggle */
+    .bot-msgs-legacy { display: none; } /* replaced by .chat-panel.hidden */
+    .bot-bubble-wrap { display:flex; flex-direction:column; max-width:90%; }
+    .bot-bubble-wrap.user-side { align-self:flex-end; align-items:flex-end; }
+    .bot-bubble-wrap.bot-side  { align-self:flex-start; }
+    .bot-bubble { padding:10px 14px; border-radius:16px; font-size:.85rem; line-height:1.5; }
+    .bot-bubble-wrap.user-side .bot-bubble { background:rgba(11,212,184,.18); border:1px solid rgba(11,212,184,.3); border-bottom-right-radius:4px; }
+    .bot-bubble-wrap.bot-side  .bot-bubble { background:rgba(244,196,48,.08); border:1px solid rgba(244,196,48,.2); color:var(--white); border-bottom-left-radius:4px; }
+    .bot-meta { font-size:.68rem; color:var(--gray); margin-bottom:3px; }
+    .bot-thinking { display:flex; gap:5px; align-items:center; padding:8px 0; }
+    .bot-dot { width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulse 1.2s infinite; }
+    .bot-dot:nth-child(2) { animation-delay:.2s; }
+    .bot-dot:nth-child(3) { animation-delay:.4s; }
+    .inst-chat-controls { display:flex; gap:8px; flex-wrap:wrap; padding:8px 16px; background:rgba(0,0,0,.15); border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0; }
+    .chat-status-badge { font-size:.72rem; font-weight:700; padding:3px 10px; border-radius:50px; }
+    .chat-status-badge.open   { background:rgba(46,204,113,.2);  color:var(--green); }
+    .chat-status-badge.closed { background:rgba(231,76,60,.2);   color:var(--coral); }
     .deal-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 10px 12px; font-size: .8rem; display: flex; flex-direction: column; gap: 5px; }
     .deal-status { display: inline-block; padding: 2px 9px; border-radius: 50px; font-size: .68rem; font-weight: 700; }
     .deal-status.pending    { background: rgba(244,196,48,.2);  color: var(--gold);  }
@@ -209,28 +271,150 @@
     .tribe-bottom .btn { flex: 1; min-width: 90px; }
 
     /* ── CHAT ───────────────────────────────────────────────────── */
-    #s-chat { }
-    .chat-wrap { display: flex; flex-direction: column; height: 100%; }
-    .chat-hdr { background: rgba(10,34,64,.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,.1); padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-    .chat-hdr-title { font-family: var(--fh); font-weight: 800; flex: 1; font-size: 1rem; }
-    .chat-tabs { display: flex; background: rgba(0,0,0,.2); border-bottom: 1px solid rgba(255,255,255,.08); flex-shrink: 0; }
-    .chat-tab  { flex: 1; padding: 10px 8px; font-size: .78rem; font-weight: 700; text-align: center; cursor: pointer; color: var(--gray); border-bottom: 2px solid transparent; transition: all .2s; }
+    #s-chat { overflow: hidden; }
+    .chat-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+    /* Header */
+    .chat-hdr {
+      background: rgba(6,20,48,.97);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      padding: 10px 14px;
+      display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
+      min-height: 56px;
+    }
+    .chat-back-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(255,255,255,.08); border: none;
+      color: var(--white); font-size: 1rem; cursor: pointer;
+      flex-shrink: 0; transition: background .15s;
+    }
+    .chat-back-btn:hover { background: rgba(255,255,255,.16); }
+    .chat-hdr-info { flex: 1; min-width: 0; }
+    .chat-hdr-title { font-family: var(--fh); font-weight: 800; font-size: .95rem; }
+    .chat-hdr-sub   { font-size: .68rem; color: var(--gray); margin-top: 1px; }
+    .chat-status-pill {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 50px; font-size: .7rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .chat-status-pill.open   { background: rgba(46,204,113,.18); color: var(--green); border: 1px solid rgba(46,204,113,.3); }
+    .chat-status-pill.closed { background: rgba(231,76,60,.18);  color: var(--coral); border: 1px solid rgba(231,76,60,.3); }
+    .chat-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Controles del instructor */
+    .inst-chat-controls {
+      display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 8px 14px;
+      background: rgba(0,0,0,.18);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      flex-shrink: 0;
+    }
+    .inst-chat-controls.visible { display: flex; }
+
+    /* Banner bloqueado */
+    .chat-locked-banner {
+      display: none;
+      background: rgba(231,76,60,.1); border-bottom: 1px solid rgba(231,76,60,.25);
+      color: var(--coral); font-size: .82rem; font-weight: 600;
+      text-align: center; padding: 9px 16px; flex-shrink: 0;
+    }
+    .chat-locked-banner.visible { display: block; }
+
+    /* Tabs */
+    .chat-tabs {
+      display: flex;
+      background: rgba(0,0,0,.25);
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      flex-shrink: 0;
+    }
+    .chat-tab {
+      flex: 1; padding: 11px 6px; font-size: .76rem; font-weight: 700;
+      text-align: center; cursor: pointer; color: var(--gray);
+      border-bottom: 2px solid transparent; transition: color .2s, border-color .2s;
+      user-select: none;
+    }
+    .chat-tab:hover  { color: rgba(255,255,255,.7); }
     .chat-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
-    .chat-msgs { flex: 1; padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .chat-input-row { background: rgba(10,34,64,.9); border-top: 1px solid rgba(255,255,255,.1); padding: 12px 16px; display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
-    .chat-inp { flex: 1; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15); border-radius: 50px; padding: 11px 18px; color: var(--white); font-family: var(--fb); font-size: .9rem; outline: none; }
+    .chat-tab.bot-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    /* Panel de mensajes */
+    .chat-panel {
+      flex: 1; overflow-y: auto; padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 10px;
+      min-height: 0;
+    }
+    .chat-panel.hidden { display: none; }
+    .chat-empty {
+      color: var(--gray); font-size: .84rem; text-align: center;
+      margin: auto; padding: 20px 0;
+    }
+
+    /* Burbujas normales */
+    .msg-row { display: flex; flex-direction: column; max-width: 82%; }
+    .msg-row.me     { align-self: flex-end;   align-items: flex-end; }
+    .msg-row.other  { align-self: flex-start; }
+    .msg-row.system { align-self: center; max-width: 95%; }
+    .msg-meta { font-size: .66rem; color: var(--gray); margin-bottom: 3px; }
+    .msg-bubble {
+      padding: 9px 13px; border-radius: 18px;
+      font-size: .85rem; line-height: 1.45; word-break: break-word;
+    }
+    .msg-row.me    .msg-bubble { background: rgba(11,212,184,.2); border: 1px solid rgba(11,212,184,.35); border-bottom-right-radius: 4px; }
+    .msg-row.other .msg-bubble { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); border-bottom-left-radius: 4px; }
+    .msg-row.system .msg-bubble { background: rgba(244,196,48,.08); border: 1px solid rgba(244,196,48,.2); color: var(--gold); font-size: .76rem; text-align: center; border-radius: 50px; font-style: italic; }
+
+    /* Burbujas del bot */
+    .bot-bubble-wrap { display: flex; flex-direction: column; max-width: 90%; }
+    .bot-bubble-wrap.user-side { align-self: flex-end; align-items: flex-end; }
+    .bot-bubble-wrap.bot-side  { align-self: flex-start; }
+    .bot-meta { font-size: .67rem; color: var(--gray); margin-bottom: 3px; }
+    .bot-bubble { padding: 10px 14px; border-radius: 16px; font-size: .85rem; line-height: 1.5; }
+    .bot-bubble-wrap.user-side .bot-bubble { background: rgba(11,212,184,.18); border: 1px solid rgba(11,212,184,.3); border-bottom-right-radius: 4px; }
+    .bot-bubble-wrap.bot-side  .bot-bubble { background: rgba(244,196,48,.08); border: 1px solid rgba(244,196,48,.2); border-bottom-left-radius: 4px; }
+    .bot-thinking { display: flex; gap: 5px; align-items: center; padding: 4px 0; }
+    .bot-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s infinite; }
+    .bot-dot:nth-child(2) { animation-delay: .2s; }
+    .bot-dot:nth-child(3) { animation-delay: .4s; }
+    .bot-intro {
+      text-align: center; padding: 28px 16px; color: var(--gray); margin: auto;
+    }
+    .bot-intro-icon { font-size: 2.4rem; margin-bottom: 10px; }
+    .bot-intro-title { font-family: var(--fh); font-size: .95rem; color: var(--gold); margin-bottom: 8px; }
+    .bot-intro-sub { font-size: .8rem; line-height: 1.5; }
+
+    /* Input row */
+    .chat-input-row {
+      background: rgba(6,20,48,.95);
+      border-top: 1px solid rgba(255,255,255,.1);
+      padding: 10px 14px;
+      display: flex; gap: 10px; align-items: center;
+      flex-shrink: 0;
+    }
+    .chat-input-row.hidden { display: none; }
+    .chat-inp {
+      flex: 1; background: rgba(255,255,255,.07);
+      border: 1.5px solid rgba(255,255,255,.15); border-radius: 50px;
+      padding: 10px 18px; color: var(--white); font-family: var(--fb); font-size: .9rem;
+      outline: none; transition: border-color .2s; min-width: 0;
+    }
     .chat-inp:focus { border-color: var(--teal); }
-    .chat-send { width: 42px; height: 42px; border-radius: 50%; background: var(--teal); color: var(--ocean); border: none; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .chat-send:hover { background: var(--teal-d); }
-    .msg-row { display: flex; flex-direction: column; max-width: 80%; }
-    .msg-row.me   { align-self: flex-end; align-items: flex-end; }
-    .msg-row.other { align-self: flex-start; }
-    .msg-row.system { align-self: center; max-width: 90%; }
-    .msg-meta { font-size: .68rem; color: var(--gray); margin-bottom: 3px; }
-    .msg-bubble { padding: 9px 13px; border-radius: 16px; font-size: .85rem; line-height: 1.45; }
-    .msg-row.me    .msg-bubble { background: rgba(11,212,184,.18); border: 1px solid rgba(11,212,184,.3); border-bottom-right-radius: 4px; }
-    .msg-row.other .msg-bubble { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-bottom-left-radius: 4px; }
-    .msg-row.system .msg-bubble { background: rgba(244,196,48,.08); border: 1px solid rgba(244,196,48,.2); color: var(--gold); font-size: .78rem; font-style: italic; text-align: center; border-radius: 50px; }
+    .chat-inp:disabled { opacity: .5; cursor: not-allowed; }
+    .chat-inp.bot-inp:focus { border-color: var(--gold); }
+    .chat-send-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--teal); color: var(--ocean);
+      border: none; cursor: pointer; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background .15s, transform .1s;
+    }
+    .chat-send-btn:hover  { background: var(--teal-d); }
+    .chat-send-btn:active { transform: scale(.92); }
+    .chat-send-btn:disabled { opacity: .35; cursor: not-allowed; transform: none !important; }
+    .chat-send-btn.bot-send { background: var(--gold); color: var(--ocean); }
+    .chat-send-btn.bot-send:hover { background: #d4a800; }
 
     /* ── RESULTADOS ─────────────────────────────────────────────── */
     #s-final { background: linear-gradient(160deg,#061a35 0%,#0a2a50 100%); }
@@ -279,6 +463,12 @@
       <div id="instructor-code-wrap" class="field" style="display:none">
         <label>Código de Seguridad del Instructor</label>
         <input type="password" id="inst-code" class="inp" placeholder="****">
+      </div>
+      <!-- Código de sala (jugadores) -->
+      <div id="join-room-wrap" class="field" style="display:none">
+        <label>🔑 Código de Sala (del instructor)</label>
+        <input type="text" id="join-code-input" class="inp" placeholder="Ej. ISLA" maxlength="6"
+               style="text-transform:uppercase;font-size:1.3rem;font-weight:800;letter-spacing:4px;text-align:center">
       </div>
       <button class="btn btn-p btn-full btn-lg" onclick="doLogin()" style="margin-top:8px">
         Ingresar al Simulador →
@@ -333,8 +523,14 @@
     </div>
     <p class="hint">Modifica los nombres de las tribus si los equipos ya se bautizaron en el aula:</p>
     <div class="tribes-grid" id="setup-tribes-list"></div>
+    <!-- Código de sala generado para el instructor -->
+    <div id="room-code-wrap" style="display:none;background:rgba(11,212,184,.08);border:2px solid rgba(11,212,184,.3);border-radius:14px;padding:16px;text-align:center">
+      <div style="font-size:.75rem;color:var(--teal);font-weight:700;letter-spacing:1px;margin-bottom:6px">🔑 CÓDIGO DE SALA — COMPÁRTELO CON LOS JUGADORES</div>
+      <div id="room-code-display" style="font-family:var(--fh);font-size:2.8rem;font-weight:800;letter-spacing:10px;color:var(--white)">----</div>
+    </div>
     <div class="nav-row" style="margin-top:10px">
       <button class="btn btn-o btn-sm" onclick="goTo('s-login')">← Atrás</button>
+      <button id="btn-create-room" class="btn btn-gold btn-sm" onclick="createRoom()">🔑 Generar Código de Sala</button>
       <button class="btn btn-p btn-sm" onclick="instructorInitGame()">Guardar y continuar →</button>
     </div>
   </div>
@@ -359,6 +555,10 @@
     </div>
     <!-- Controles del instructor -->
     <div id="lobby-inst-controls" style="display:none;flex-direction:column;gap:10px;width:100%">
+      <div id="lobby-room-code" style="background:rgba(11,212,184,.08);border:2px solid rgba(11,212,184,.3);border-radius:14px;padding:12px;text-align:center;display:none">
+        <div style="font-size:.7rem;color:var(--teal);font-weight:700;letter-spacing:1px;margin-bottom:4px">🔑 CÓDIGO DE SALA</div>
+        <div id="lobby-room-code-val" style="font-family:var(--fh);font-size:2rem;font-weight:800;letter-spacing:8px">----</div>
+      </div>
       <button class="btn btn-o btn-full" onclick="goTo('s-rules')">📖 Ver Instrucciones</button>
       <button class="btn btn-p btn-full btn-lg" id="btn-start-round" onclick="instructorStartRound()">▶ Iniciar Ronda 1</button>
       <button class="btn btn-danger btn-sm btn-full" onclick="confirmReset()">🔄 Reiniciar partida</button>
@@ -399,6 +599,7 @@
   </div>
   <div class="inst-actions">
     <button class="btn btn-gold btn-sm" onclick="goToChat()">💬 Chat</button>
+    <button id="btn-inst-toggle-chat" class="btn btn-sm btn-o" onclick="toggleChat()" style="font-size:.72rem">🔒 Cerrar Chat</button>
     <button class="btn btn-o btn-sm"    onclick="openModalEditRes()">📦 Recursos</button>
     <button class="btn btn-p btn-sm"    onclick="instructorStartRound()">🔄 Siguiente Ronda</button>
     <button class="btn btn-danger btn-sm" onclick="confirmReset()">↩ Reiniciar</button>
@@ -470,20 +671,75 @@
 ════════════════════════════════════════════════════════ -->
 <div id="s-chat" class="screen">
   <div class="chat-wrap">
+
+    <!-- ── Header ── -->
     <div class="chat-hdr">
-      <button class="btn btn-o btn-sm" onclick="goBackFromChat()">← Volver</button>
-      <div class="chat-hdr-title">💬 Chat del Simulador</div>
-      <div id="chat-badge" style="font-size:.72rem;background:rgba(255,255,255,.1);padding:4px 10px;border-radius:50px"></div>
+      <button class="chat-back-btn" onclick="goBackFromChat()" title="Volver">←</button>
+      <div class="chat-hdr-info">
+        <div class="chat-hdr-title">💬 Chat</div>
+        <div class="chat-hdr-sub" id="chat-badge">General</div>
+      </div>
+      <div id="chat-status-badge" class="chat-status-pill open">
+        <span class="chat-status-dot"></span>Abierto
+      </div>
     </div>
+
+    <!-- ── Controles instructor ── -->
+    <div id="inst-chat-controls" class="inst-chat-controls">
+      <button id="btn-toggle-chat" class="btn btn-sm btn-o" onclick="toggleChat()">🔒 Cerrar Chat</button>
+      <button class="btn btn-sm btn-danger" onclick="confirmClearChat()">🗑️ Borrar mensajes</button>
+    </div>
+
+    <!-- ── Banner bloqueado ── -->
+    <div id="chat-locked-banner" class="chat-locked-banner">
+      🔒 El instructor ha cerrado el chat temporalmente
+    </div>
+
+    <!-- ── Tabs ── -->
     <div class="chat-tabs">
       <div class="chat-tab active" id="tab-general" onclick="setChatTab('general')">🌐 General</div>
-      <div class="chat-tab" id="tab-tribe" onclick="setChatTab('tribe')">🏕️ Mi Tribu</div>
+      <div class="chat-tab"        id="tab-tribe"   onclick="setChatTab('tribe')">🏕️ Mi Tribu</div>
+      <div class="chat-tab bot-tab" id="tab-bot"    onclick="setChatTab('bot')">🤖 Estratega</div>
     </div>
-    <div class="chat-msgs" id="chat-msgs"></div>
-    <div class="chat-input-row">
-      <input type="text" class="chat-inp" id="chat-input" placeholder="Escribe un mensaje…"
-             onkeydown="if(event.key==='Enter')sendChatMsg()" maxlength="200" autocomplete="off">
-      <button class="chat-send" onclick="sendChatMsg()">➤</button>
+
+    <!-- ── Panel: mensajes generales / tribu ── -->
+    <div class="chat-panel" id="chat-msgs"></div>
+
+    <!-- ── Panel: bot ── -->
+    <div class="chat-panel hidden" id="bot-msgs"></div>
+
+    <!-- ── Input: chat normal ── -->
+    <div class="chat-input-row" id="chat-input-row">
+      <input type="text" class="chat-inp" id="chat-input"
+             placeholder="Escribe un mensaje…"
+             onkeydown="if(event.key==='Enter')sendChatMsg()"
+             maxlength="200" autocomplete="off">
+      <button class="chat-send-btn" onclick="sendChatMsg()" title="Enviar">➤</button>
+    </div>
+
+    <!-- ── Input: bot ── -->
+    <div class="chat-input-row hidden" id="bot-input-row">
+      <input type="text" class="chat-inp bot-inp" id="bot-input"
+             placeholder="Pregunta al Estratega IA…"
+             onkeydown="if(event.key==='Enter')sendBotMsg()"
+             maxlength="300" autocomplete="off">
+      <button class="chat-send-btn bot-send" onclick="sendBotMsg()" title="Preguntar">➤</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL — CONFIRMAR BORRAR CHAT -->
+<div class="modal" id="modal-clear-chat">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-clear-chat')">✕</button>
+    <div class="modal-title">🗑️ ¿Borrar todos los mensajes?</div>
+    <p style="color:var(--gray);font-size:.88rem;line-height:1.5;margin-bottom:20px">
+      Esto borrará permanentemente todos los mensajes del chat general y de tribu.
+    </p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-o btn-full" onclick="closeModal('modal-clear-chat')">Cancelar</button>
+      <button class="btn btn-danger btn-full" onclick="doClearChat()">Sí, borrar todo</button>
     </div>
   </div>
 </div>
@@ -613,7 +869,7 @@
 ────────────────────────────────────────────────────────── */
 const ROUND_SECS      = 180;
 const MAX_ROUNDS      = 5;
-const INSTRUCTOR_CODE = '1234';
+const INSTRUCTOR_CODE = '676767';
 
 const DEFAULT_TRIBES = [
   { name: 'Tribu Arrecife',   emoji: '🦈', color: '#1ab8d8' },
@@ -670,17 +926,121 @@ function freshState() {
     })),
     players: [],           // [{ name, tribeId }]
     deals:   [],           // [{ id, fromId, toId, giveW,giveF,giveM, recvW,recvF,recvM, round, status }]
-    chat:    []            // [{ id, author, tribeId, tab, text, ts, system }]
+    chat:    [],           // [{ id, author, tribeId, tab, text, ts, system }]
+    chatOpen: true          // instructor puede cerrar/abrir el chat
   };
 }
 
-let DB = freshState();    // ← ÚNICO almacén de datos
+let DB = freshState();
 
-// Las tres funciones de acceso a datos.
-// Cuando conectes Firebase, reemplaza solo estas tres.
-function loadDB()      { return DB; }
-function saveDB(d)     { DB = d; renderAll(); }
-function updateDB(fn)  { const d = loadDB(); fn(d); saveDB(d); }
+/* ══════════════════════════════════════════════════════════
+   FIREBASE — CÓDIGO DE SALA
+   • El instructor genera un código de 4 letras (ej. ISLA)
+   • Todos los datos viven en /salas/<CODIGO>/
+   • Los jugadores ingresan ese código para unirse
+   ══════════════════════════════════════════════════════════ */
+let _roomCode    = null;   // código de sala activo
+let _fbListener  = null;   // referencia al listener activo para poder detenerlo
+let _fbReady     = false;
+// _inChat eliminado: usamos isActive('s-chat') directamente para evitar desincronización
+
+function _roomRef() {
+  if (!_roomCode || !window._fbDB) return null;
+  return window._fbDB.ref('salas/' + _roomCode);
+}
+
+/** Llama fn(data) cada vez que Firebase actualiza, y actualiza DB local */
+function _attachListener(code) {
+  if (!window._fbDB) {
+    // Firebase aún cargando — guardar para cuando esté listo
+    window._pendingRoomCode = code;
+    return;
+  }
+  if (_fbListener) _fbListener.off();  // desconectar listener anterior
+  const r = window._fbDB.ref('salas/' + code);
+  _fbListener = r;
+  r.on('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+    DB = data;
+    renderAll();
+    // Nunca navegar si el usuario está en el chat
+    if (!isActive('s-chat')) {
+      if (data.phase === 'playing' && session.role !== 'instructor') autoNavigate(data);
+      if (data.phase === 'final') goTo('s-final');
+    }
+  });
+}
+
+function loadDB() { return DB; }
+
+function saveDB(d) {
+  DB = d;
+  const r = _roomRef();
+  if (r) {
+    r.set(d).catch(err => {
+      console.error('Firebase write error:', err);
+      showToast('⚠️ Error al guardar en Firebase', 'warning');
+    });
+  }
+  renderAll();
+}
+
+function updateDB(fn) {
+  const d = loadDB();
+  fn(d);
+  saveDB(d);
+}
+
+/* ─── Instructor: crear sala nueva ─── */
+async function createRoom() {
+  if (!window._fbDB) { showToast('⏳ Firebase aún cargando, espera un momento…', 'warning'); return; }
+  const btn = document.getElementById('btn-create-room');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando…'; }
+
+  // Generar código de 4 letras mayúsculas aleatorio
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+
+  _roomCode = code;
+  _fbReady  = true;
+  _attachListener(code);
+
+  // Subir estado inicial a Firebase
+  const fresh = freshState();
+  await window._fbDB.ref('salas/' + code).set(fresh);
+  DB = fresh;
+
+  // Mostrar código generado
+  document.getElementById('room-code-display').textContent = code;
+  document.getElementById('room-code-wrap').style.display  = '';
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 Nueva Sala'; }
+  showToast('🏝️ Sala ' + code + ' creada', 'success');
+}
+
+/* ─── Jugador: unirse a sala existente ─── */
+async function joinRoom() {
+  if (!window._fbDB) { showToast('⏳ Firebase aún cargando, espera un momento…', 'warning'); return; }
+  const inp  = document.getElementById('join-code-input');
+  const code = inp?.value.trim().toUpperCase();
+  if (!code || code.length < 2) { showToast('⚠️ Ingresa el código de sala', 'warning'); return; }
+
+  const snap = await window._fbDB.ref('salas/' + code).get();
+  if (!snap.exists()) {
+    showToast('⚠️ Sala "' + code + '" no encontrada', 'warning');
+    return;
+  }
+
+  _roomCode = code;
+  _fbReady  = true;
+  DB        = snap.val();
+  _attachListener(code);
+  showToast('✅ Unido a sala ' + code, 'success');
+
+  // Continuar con el login normal
+  _finishPlayerLogin();
+}
 
 /* ──────────────────────────────────────────────────────────
    SESIÓN LOCAL (datos del usuario en este dispositivo)
@@ -755,17 +1115,29 @@ function doLogin() {
     goTo('s-setup');
 
   } else {
+    // Jugador: necesita código de sala
     if (selectedTribe === null) { showToast('⚠️ Elige tu tribu', 'warning'); return; }
     session.role    = 'player';
     session.tribeId = selectedTribe;
-    // Registrar jugador (evitar duplicado por nombre+tribu)
-    updateDB(d => {
-      if (!d.players) d.players = [];
-      const exists = d.players.some(p => p.name === session.name && p.tribeId === session.tribeId);
-      if (!exists) d.players.push({ name: session.name, tribeId: session.tribeId });
-    });
-    goToLobby();
+    // Mostrar campo de código de sala si aún no se mostró
+    const jw = document.getElementById('join-room-wrap');
+    if (jw && jw.style.display === 'none') {
+      jw.style.display = '';
+      showToast('🔑 Ingresa el código de sala del instructor', 'info');
+      return;
+    }
+    // Si ya está visible, intentar unirse
+    joinRoom();
   }
+}
+
+function _finishPlayerLogin() {
+  updateDB(d => {
+    if (!d.players) d.players = [];
+    const exists = d.players.some(p => p.name === session.name && p.tribeId === session.tribeId);
+    if (!exists) d.players.push({ name: session.name, tribeId: session.tribeId });
+  });
+  goToLobby();
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -781,7 +1153,10 @@ function renderSetupTribes() {
     </div>`).join('');
 }
 
-function instructorInitGame() {
+async function instructorInitGame() {
+  // Si no hay sala creada, crear una ahora
+  if (!_roomCode) await createRoom();
+
   updateDB(d => {
     DEFAULT_TRIBES.forEach((def, i) => {
       const val = document.getElementById(`tn-${i}`)?.value.trim();
@@ -805,6 +1180,13 @@ function goToLobby() {
   goTo('s-lobby');
   if (session.role === 'instructor') {
     document.getElementById('lobby-inst-controls').style.display = 'flex';
+    // Mostrar código de sala si ya existe
+    if (_roomCode) {
+      const lrc = document.getElementById('lobby-room-code');
+      const lrv = document.getElementById('lobby-room-code-val');
+      if (lrc) lrc.style.display = '';
+      if (lrv) lrv.textContent = _roomCode;
+    }
   }
   renderLobby(DB);
 }
@@ -844,25 +1226,39 @@ function renderLobby(d) {
   if (btn) btn.textContent = d.phase === 'playing' ? '🔄 Siguiente Ronda' : '▶ Iniciar Ronda 1';
 
   // Auto-navegar si el juego ya empezó
-  if (d.phase === 'playing') autoNavigate(d);
-  if (d.phase === 'final')   goTo('s-final');
+  if (!isActive('s-chat')) {
+    if (d.phase === 'playing') autoNavigate(d);
+    if (d.phase === 'final')   goTo('s-final');
+  }
 }
 
 /* ──────────────────────────────────────────────────────────
-   TIMER
+   TIMER — solo el instructor corre el timer localmente
+   NO escribe en Firebase cada segundo (evita loop)
 ────────────────────────────────────────────────────────── */
 function startTimer() {
   clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     const d = loadDB();
-    if (!d.timerRunning) return;
+    if (!d.timerRunning) { clearInterval(timerInterval); timerInterval = null; return; }
     if (d.timerSec <= 0) {
       clearInterval(timerInterval);
-      updateDB(dd => { dd.timerRunning = false; });
+      timerInterval = null;
+      // Solo el instructor escribe el fin del timer en Firebase
+      if (session.role === 'instructor') {
+        updateDB(dd => { dd.timerRunning = false; dd.timerSec = 0; });
+      }
       showToast('⏰ ¡Tiempo! La ronda ha terminado.', 'warning');
       return;
     }
-    updateDB(dd => { dd.timerSec = Math.max(0, dd.timerSec - 1); });
+    // Decrementar solo localmente para no inundar Firebase
+    DB.timerSec = Math.max(0, DB.timerSec - 1);
+    renderTimer(DB.timerSec);
+    // Cada 10 segundos sincronizar con Firebase (solo instructor)
+    if (session.role === 'instructor' && DB.timerSec % 10 === 0) {
+      const r = _roomRef();
+      if (r) r.child('timerSec').set(DB.timerSec).catch(()=>{});
+    }
   }, 1000);
 }
 
@@ -919,7 +1315,7 @@ function instructorStartRound() {
 
   postSystemMsg(`🔔 Ronda ${d.round}/${MAX_ROUNDS} iniciada — ${ev.icon} ${ev.text}`);
   showToast(`▶ Ronda ${d.round} iniciada`, 'success');
-  goTo('s-instructor');
+  if (!isActive('s-chat')) goTo('s-instructor');
 }
 
 function applyEvent(d, ev) {
@@ -1155,19 +1551,126 @@ function renderAll() {
   renderInstructor(d);
   renderTribeView(d);
   renderFinal(d);
+  // Renderizar chat si está abierto (sin cambiar de pantalla)
+  if (isActive('s-chat')) {
+    if (chatTab === 'bot') renderBotMsgs();
+    else renderChatMsgs();
+    renderChatLockUI();
+  }
   if (d.timerRunning && !timerInterval) startTimer();
 }
 
 /* ──────────────────────────────────────────────────────────
-   CHAT
+   CHAT — FILTRO DE GROSERÍAS
+────────────────────────────────────────────────────────── */
+const BANNED_WORDS = [
+  // Español
+  'puta','puto','mierda','coño','joder','hostia','cabrón','cabron',
+  'hijueputa','hijueputo','malparido','malparida','gonorrea','marica',
+  'maricón','maricon','verga','culo','pendejo','pendeja','idiota',
+  'estúpido','estupido','imbécil','imbecil','hdp','ptm','wtf',
+  'culero','chinga','chingada','pinche','mamón','mamon','güey','wey',
+  'cagada','carajo','hijo de puta','perra','perro','bastardo',
+  // English (básico)
+  'fuck','shit','bitch','asshole','damn','crap','ass','dick','cock',
+  'pussy','bastard','motherfucker','faggot','retard','nigga','nigger'
+];
+
+function filterProfanity(text) {
+  let filtered = text;
+  BANNED_WORDS.forEach(word => {
+    try {
+      // Escapar todos los caracteres especiales de regex de forma segura
+      const escaped = word.split('').map(ch => {
+        return '-[]{}/\\^$.|?*+()'.includes(ch) ? '\\' + ch : ch;
+      }).join('');
+      const regex = new RegExp(escaped, 'gi');
+      filtered = filtered.replace(regex, match => '*'.repeat(match.length));
+    } catch(e) {
+      // Fallback: búsqueda simple sin regex
+      const lower = filtered.toLowerCase();
+      const wl    = word.toLowerCase();
+      let idx = lower.indexOf(wl);
+      while (idx !== -1) {
+        filtered = filtered.slice(0, idx) + '*'.repeat(word.length) + filtered.slice(idx + word.length);
+        idx = filtered.toLowerCase().indexOf(wl, idx + word.length);
+      }
+    }
+  });
+  return filtered;
+}
+
+/* ──────────────────────────────────────────────────────────
+   CHAT — CONTROL DE ACCESO (instructor abre/cierra)
+────────────────────────────────────────────────────────── */
+function toggleChat() {
+  const isOpen = DB.chatOpen !== false;
+  updateDB(d => { d.chatOpen = !isOpen; });
+  const msg = isOpen ? '🔒 El instructor cerró el chat' : '🔓 El instructor abrió el chat';
+  postSystemMsg(msg);
+  showToast(isOpen ? '🔒 Chat cerrado' : '🔓 Chat abierto', isOpen ? 'warning' : 'success');
+}
+
+function confirmClearChat() { openModal('modal-clear-chat'); }
+
+function doClearChat() {
+  updateDB(d => { d.chat = []; });
+  closeModal('modal-clear-chat');
+  showToast('🗑️ Chat borrado', 'info');
+  renderChatMsgs();
+}
+
+function renderChatLockUI() {
+  const isOpen   = DB.chatOpen !== false;
+  const banner   = document.getElementById('chat-locked-banner');
+  const inputRow = document.getElementById('chat-input-row');
+  const badge    = document.getElementById('chat-status-badge');
+
+  // Banner bloqueado (solo para no-instructores)
+  if (banner) {
+    banner.classList.toggle('visible', !isOpen && session.role !== 'instructor');
+  }
+
+  // Input deshabilitado si cerrado (para no-instructor)
+  if (inputRow) {
+    const inp  = document.getElementById('chat-input');
+    const btn  = inputRow.querySelector('.chat-send-btn');
+    const lock = !isOpen && session.role !== 'instructor';
+    if (inp) {
+      inp.disabled    = lock;
+      inp.placeholder = lock ? '🔒 Chat cerrado por el instructor' : 'Escribe un mensaje…';
+    }
+    if (btn) btn.disabled = lock;
+  }
+
+  // Badge de estado
+  if (badge) {
+    badge.innerHTML  = `<span class="chat-status-dot"></span>${isOpen ? 'Abierto' : 'Cerrado'}`;
+    badge.className  = `chat-status-pill ${isOpen ? 'open' : 'closed'}`;
+  }
+
+  // Botones del instructor
+  const btnToggle     = document.getElementById('btn-toggle-chat');
+  const btnInstToggle = document.getElementById('btn-inst-toggle-chat');
+  const label = isOpen ? '🔒 Cerrar Chat' : '🔓 Abrir Chat';
+  if (btnToggle)     btnToggle.textContent     = label;
+  if (btnInstToggle) btnInstToggle.textContent = label;
+
+  // Controles del instructor en el chat
+  const instCtrl = document.getElementById('inst-chat-controls');
+  if (instCtrl) instCtrl.classList.toggle('visible', session.role === 'instructor');
+}
+
+/* ──────────────────────────────────────────────────────────
+   CHAT — NAVEGACIÓN Y RENDER
 ────────────────────────────────────────────────────────── */
 function goToChat() {
-  // Recordar de dónde venimos
   const active = document.querySelector('.screen.active');
   if (active && active.id !== 's-chat') prevScreen = active.id;
+  goTo('s-chat');   // primero navegar, luego renderizar (isActive('s-chat') ya será true)
   renderChatBadge();
   renderChatMsgs();
-  goTo('s-chat');
+  renderChatLockUI();
 }
 
 function goBackFromChat() {
@@ -1190,19 +1693,35 @@ function setChatTab(tab) {
   chatTab = tab;
   document.getElementById('tab-general').classList.toggle('active', tab === 'general');
   document.getElementById('tab-tribe').classList.toggle('active',   tab === 'tribe');
-  renderChatMsgs();
+  const botTab = document.getElementById('tab-bot');
+  if (botTab) botTab.classList.toggle('active', tab === 'bot');
+
+  // Mostrar panel correcto
+  const chatMsgs  = document.getElementById('chat-msgs');
+  const botMsgs   = document.getElementById('bot-msgs');
+  const chatInput = document.getElementById('chat-input-row');
+  const botInput  = document.getElementById('bot-input-row');
+
+  if (chatMsgs)  chatMsgs.classList.toggle('hidden',  tab === 'bot');
+  if (botMsgs)   botMsgs.classList.toggle('hidden',   tab !== 'bot');
+  if (chatInput) chatInput.classList.toggle('hidden',  tab === 'bot');
+  if (botInput)  botInput.classList.toggle('hidden',   tab !== 'bot');
+
+  if (tab !== 'bot') renderChatMsgs();
+  else renderBotMsgs();
+  renderChatLockUI();
 }
 
 function renderChatMsgs() {
   const container = document.getElementById('chat-msgs');
   if (!container) return;
-  const all = DB.chat || [];
+  const all  = DB.chat || [];
   const msgs = chatTab === 'tribe'
     ? all.filter(m => m.system || m.tribeId === session.tribeId)
     : all;
 
   if (msgs.length === 0) {
-    container.innerHTML = '<div style="color:var(--gray);font-size:.85rem;text-align:center;margin-top:24px">Sin mensajes aún</div>';
+    container.innerHTML = '<div class="chat-empty">Sin mensajes aún</div>';
     return;
   }
   container.innerHTML = msgs.map(m => {
@@ -1218,13 +1737,19 @@ function renderChatMsgs() {
     </div>`;
   }).join('');
   container.scrollTop = container.scrollHeight;
+  renderChatLockUI();
 }
 
 function sendChatMsg() {
+  const isOpen = DB.chatOpen !== false;
+  if (!isOpen && session.role !== 'instructor') {
+    showToast('🔒 El chat está cerrado', 'warning'); return;
+  }
   const inp = document.getElementById('chat-input');
-  const txt = inp?.value.trim();
-  if (!txt) return;
+  const raw = inp?.value.trim();
+  if (!raw) return;
   inp.value = '';
+  const txt = filterProfanity(raw);
   updateDB(d => {
     if (!d.chat) d.chat = [];
     d.chat.push({
@@ -1245,6 +1770,217 @@ function postSystemMsg(text) {
     if (!d.chat) d.chat = [];
     d.chat.push({ id: Date.now(), author: 'Sistema', tribeId: null, tab: 'general', text, ts: Date.now(), system: true });
   });
+}
+
+/* ──────────────────────────────────────────────────────────
+   CHATBOT ESTRATEGA IA (Anthropic API)
+────────────────────────────────────────────────────────── */
+let botHistory   = [];   // historial local de mensajes con el bot
+let botThinking  = false;
+
+function renderBotMsgs() {
+  const container = document.getElementById('bot-msgs');
+  if (!container) return;
+  if (botHistory.length === 0) {
+    container.innerHTML = `
+      <div class="bot-intro">
+        <div class="bot-intro-icon">🤖</div>
+        <div class="bot-intro-title">Estratega IA</div>
+        <div class="bot-intro-sub">Soy tu consejero estratégico en tiempo real.<br><br>
+          <strong style="color:var(--gold)">Puedes preguntarme:</strong><br>
+          • "¿Debo cumplir o traicionar este acuerdo?"<br>
+          • "¿Con qué tribu me conviene negociar?"<br>
+          • "¿Cómo voy en el juego?"<br>
+          • "¿Qué recursos me hacen falta?"<br>
+          • "¿Cómo afecta el evento actual mi estrategia?"
+        </div>
+      </div>`;
+    return;
+  }
+  container.innerHTML = botHistory.map(m => {
+    const isUser = m.role === 'user';
+    return `<div class="bot-bubble-wrap ${isUser ? 'user-side' : 'bot-side'}">
+      <div class="bot-meta">${isUser ? (session.name || 'Tú') : '🤖 Estratega'}</div>
+      <div class="bot-bubble">${esc(m.content)}</div>
+    </div>`;
+  }).join('');
+  if (botThinking) {
+    container.innerHTML += `<div class="bot-bubble-wrap bot-side">
+      <div class="bot-meta">🤖 Estratega</div>
+      <div class="bot-bubble"><div class="bot-thinking">
+        <div class="bot-dot"></div><div class="bot-dot"></div><div class="bot-dot"></div>
+      </div></div>
+    </div>`;
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendBotMsg() {
+  if (botThinking) return;
+  const inp = document.getElementById('bot-input');
+  const raw = inp?.value.trim();
+  if (!raw) return;
+  inp.value = '';
+
+  const txt = filterProfanity(raw);
+  botHistory.push({ role: 'user', content: txt });
+  botThinking = true;
+  renderBotMsgs();
+
+  // ── Contexto detallado del juego ──
+  const myTribe   = DB.tribes?.[session.tribeId];
+  const allTribes = DB.tribes || [];
+  const myDeals   = (DB.deals || []).filter(x => x.fromId === session.tribeId || x.toId === session.tribeId);
+  const roundDeals = myDeals.filter(d => d.round === DB.round);
+  const totalRes   = myTribe ? myTribe.water + myTribe.food + myTribe.medicine : 0;
+  const avgRes     = allTribes.length
+    ? Math.round(allTribes.reduce((s,t) => s + t.water + t.food + t.medicine, 0) / allTribes.length)
+    : 0;
+
+  // Resumen de otras tribus (reputación y recursos totales)
+  const otherTribes = allTribes
+    .filter((_, i) => i !== session.tribeId)
+    .map(t => `  • ${t.emoji} ${t.name}: ${t.water+t.food+t.medicine} recursos totales, rep ${t.reputation}`)
+    .join('\n');
+
+  // Estado de acuerdos activos
+  const pendingDeals = roundDeals.filter(d => d.status === 'pending');
+  const dealsSummary = pendingDeals.length
+    ? pendingDeals.map(d => {
+        const other = allTribes[d.fromId === session.tribeId ? d.toId : d.fromId];
+        const gives = d.fromId === session.tribeId
+          ? `entrego ${d.giveW}💧${d.giveF}🍞${d.giveM}💊, recibo ${d.recvW}💧${d.recvF}🍞${d.recvM}💊`
+          : `recibo ${d.giveW}💧${d.giveF}🍞${d.giveM}💊, entrego ${d.recvW}💧${d.recvF}🍞${d.recvM}💊`;
+        return `  • Acuerdo con ${other?.emoji} ${other?.name}: ${gives}`;
+      }).join('\n')
+    : '  Sin acuerdos pendientes esta ronda.';
+
+  // Diagnóstico automático de situación
+  let situacion = '';
+  if (myTribe) {
+    const escarso = myTribe.water < 5 || myTribe.food < 5 || myTribe.medicine < 5;
+    const repBaja = myTribe.reputation < 60;
+    const repAlta = myTribe.reputation > 150;
+    const ultimaRonda = DB.round >= MAX_ROUNDS;
+    const liderRec = allTribes.reduce((a,b) => (a.water+a.food+a.medicine) > (b.water+b.food+b.medicine) ? a : b);
+    const estoyLider = liderRec.id === session.tribeId;
+    if (escarso) situacion += ' ⚠️ Tienes recursos críticos.';
+    if (repBaja)  situacion += ' 📉 Tu reputación es baja — traicionar más te puede costar la partida.';
+    if (repAlta)  situacion += ' ✨ Tienes buena reputación — úsala para pedir mejores tratos.';
+    if (ultimaRonda) situacion += ' 🏁 Es la última ronda — maximiza puntos ahora.';
+    if (estoyLider) situacion += ' 🥇 Vas liderando en recursos.';
+    if (totalRes < avgRes * 0.7) situacion += ' 📊 Estás por debajo del promedio de recursos.';
+  }
+
+  const gameCtx = myTribe ? `
+=== ESTADO ACTUAL DEL JUEGO ===
+Mi tribu: ${myTribe.emoji} ${myTribe.name}
+Ronda: ${DB.round} de ${MAX_ROUNDS}
+Mis recursos: ${myTribe.water}💧 agua | ${myTribe.food}🍞 comida | ${myTribe.medicine}💊 medicina (total: ${totalRes})
+Promedio del resto: ${avgRes} recursos por tribu
+Reputación: ${myTribe.reputation}/200
+Evento activo: ${DB.currentEvent?.icon || ''} ${DB.currentEvent?.text || '—'}
+Histórico: ${myDeals.filter(d=>d.status==='fulfilled').length} acuerdos cumplidos, ${myDeals.filter(d=>d.status==='broken').length} traicionados
+
+Otras tribus:
+${otherTribes}
+
+Acuerdos pendientes esta ronda:
+${dealsSummary}
+
+Diagnóstico automático:${situacion || ' Sin alertas críticas.'}
+` : 'El juego aún no ha comenzado o no estás en una tribu.';
+
+  const systemPrompt = `Eres el ESTRATEGA IA del juego educativo "La Isla de los Acuerdos". Eres un consejero de supervivencia astuto, directo y un poco dramático.
+
+REGLAS DEL JUEGO:
+- 6 tribus negocian recursos (agua💧, comida🍞, medicina💊) durante 5 rondas.
+- Cada ronda: cumplir acuerdos da +15 reputación por acuerdo, traicionar da -25 rep.
+- Puntos finales = total de recursos + reputación/2.
+- Eventos cada ronda afectan a todas las tribus.
+- Ganar requiere equilibrio: recursos Y reputación importan.
+
+${gameCtx}
+
+TU ESTILO:
+- Responde SIEMPRE en español.
+- Máximo 3-4 oraciones. Sé conciso y directo.
+- Analiza la situación real del jugador (usa los datos del contexto).
+- Da consejos específicos y accionables, no genéricos.
+- Usa emojis estratégicamente (no en cada palabra).
+- Si el jugador tiene recursos bajos de algo específico, díselo.
+- Si debe traicionar o cumplir esta ronda, analiza los pros y contras.
+- Si hay un evento activo, menciona cómo afecta la estrategia.
+- Varía tus respuestas; no repitas siempre lo mismo.
+- Puedes ser un poco sarcástico o dramático para hacer el juego más divertido.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 350,
+        system:     systemPrompt,
+        messages:   botHistory.map(m => ({ role: m.role, content: m.content }))
+      })
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data  = await resp.json();
+    const reply = data.content?.[0]?.text?.trim() || '🤔 No pude formular un consejo. Intenta de nuevo.';
+    botHistory.push({ role: 'assistant', content: reply });
+
+  } catch(err) {
+    console.error('Bot error:', err);
+    // Fallback: consejos locales según el estado del juego
+    const fallback = generateLocalAdvice();
+    botHistory.push({ role: 'assistant', content: fallback });
+  }
+
+  botThinking = false;
+  renderBotMsgs();
+}
+
+/** Genera consejo local cuando la API no está disponible */
+function generateLocalAdvice() {
+  const t = DB.tribes?.[session.tribeId];
+  if (!t) return '🏝️ Primero únete a una tribu para recibir consejos estratégicos.';
+
+  const ronda = DB.round;
+  const myDeals = (DB.deals || []).filter(x => x.fromId === session.tribeId || x.toId === session.tribeId);
+  const traiciones = myDeals.filter(d => d.status === 'broken').length;
+
+  const tips = [];
+
+  // Basado en recursos
+  if (t.water < 5)    tips.push(`💧 ¡Agua crítica (${t.water})! Negocia agua urgentemente o no sobrevivirás.`);
+  if (t.food < 5)     tips.push(`🍞 Sin comida (${t.food}) tu tribu se debilitará. Busca un acuerdo alimentario.`);
+  if (t.medicine < 5) tips.push(`💊 Medicina escasa (${t.medicine}). Si llega una epidemia, estarás perdido.`);
+
+  // Basado en reputación
+  if (t.reputation < 50)  tips.push(`📉 Reputación ${t.reputation}/200 — Estás en zona de peligro. Cumple los próximos acuerdos sin falta.`);
+  if (t.reputation > 160) tips.push(`⭐ Reputación ${t.reputation}/200 — Excelente. Úsala para exigir mejores tratos en las negociaciones.`);
+
+  // Basado en ronda
+  if (ronda >= 4) tips.push(`🏁 Ronda ${ronda}/5 — Quedan pocas rondas. Calcula: recursos actuales + reputación/2 = tus puntos.`);
+  if (ronda === 1) tips.push(`🚀 Ronda 1 — Es temprano. Construye alianzas y CUMPLE para ganar reputación.`);
+
+  // Basado en traiciones
+  if (traiciones > 2) tips.push(`💀 Has traicionado ${traiciones} veces. Las otras tribus ya desconfían de ti — cambia de estrategia.`);
+  if (traiciones === 0 && myDeals.length > 1) tips.push(`🤝 Historial impecable. Las otras tribus confían en ti — aprovéchalo para pedir más.`);
+
+  // Evento activo
+  const ev = DB.currentEvent?.text;
+  if (ev) tips.push(`🌍 Evento: "${ev}" — Ajusta tu estrategia según esto.`);
+
+  if (tips.length === 0) tips.push(`🧠 Situación estable. Mantén alianzas con las tribus más fuertes y conserva recursos para la última ronda.`);
+
+  return tips[Math.floor(Math.random() * Math.min(tips.length, 2))];
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -1382,19 +2118,32 @@ function confirmReset() { openModal('modal-reset'); }
 function doReset() {
   clearInterval(timerInterval);
   timerInterval = null;
-  DB = freshState();
+  const fresh = freshState();
+  DB = fresh;
+  // Si hay sala activa, reiniciar en Firebase también
+  if (_roomCode && window._fbDB) {
+    window._fbDB.ref('salas/' + _roomCode).set(fresh).catch(console.error);
+  }
   session = { name: '', role: 'player', tribeId: null };
   selectedRole  = 'player';
   selectedTribe = null;
   chatTab = 'general';
+  _roomCode = null;
+  if (_fbListener) { _fbListener.off(); _fbListener = null; }
 
-  // Limpiar campos del login
   const uname = document.getElementById('user-name');
   const icode = document.getElementById('inst-code');
+  const jinp  = document.getElementById('join-code-input');
   if (uname) uname.value = '';
   if (icode) icode.value = '';
+  if (jinp)  jinp.value  = '';
 
-  // Resetear UI del login
+  // Ocultar elementos de sala
+  const jw = document.getElementById('join-room-wrap');
+  const rw = document.getElementById('room-code-wrap');
+  if (jw) jw.style.display = 'none';
+  if (rw) rw.style.display = 'none';
+
   setRole('player');
   renderTribePicker();
 
